@@ -41,6 +41,14 @@ impl Position {
             other.column() as isize - self.column() as isize,
         )
     }
+
+    pub fn as_notation(&self) -> String {
+        format!(
+            "{}{}",
+            (b'a' + self.1 as u8) as char,
+            (b'8' - self.0 as u8) as char
+        )
+    }
 }
 
 impl Display for Position {

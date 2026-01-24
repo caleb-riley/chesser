@@ -1,27 +1,19 @@
 use crate::position::Position;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum MoveKind {
     Passive,
-    Capture(Position),
+    Capture(Vec<Position>),
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Move {
-    destination: Position,
-    kind: MoveKind,
+    pub destination: Position,
+    pub kind: MoveKind,
 }
 
 impl Move {
     pub fn new(destination: Position, kind: MoveKind) -> Self {
         Self { destination, kind }
-    }
-
-    pub fn destination(&self) -> Position {
-        self.destination
-    }
-
-    pub fn kind(&self) -> MoveKind {
-        self.kind
     }
 }
