@@ -1,0 +1,15 @@
+[package]
+name = "chesser_client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chesser_core = { path = "../chesser_core" }
+
+bevy = { version = "0.18", default-features = false, features = [
+    "2d",
+    "mp3",
+    "serialize",
+] }
+bevy_egui = "0.39.0"
+image = "0.25.9"

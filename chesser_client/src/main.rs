@@ -3,20 +3,13 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy_egui::egui;
 
-use crate::{
+use chesser_core::{
     board::Board,
     kind::*,
     moves::{Move, MoveKind},
     piece::{Piece, PieceColor},
     position::Position,
 };
-
-mod board;
-mod kind;
-mod moves;
-mod piece;
-mod position;
-mod utils;
 
 pub fn play_move_sound(asset_server: &Res<AssetServer>, commands: &mut Commands, sound: &str) {
     let file_name = format!("sounds/{sound}.mp3");
