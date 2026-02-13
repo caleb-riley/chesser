@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Display};
 
-use crate::{kind::PieceKindRef, position::Position};
+use mlua::IntoLua;
+
+use crate::position::Position;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum PieceColor {
@@ -36,22 +38,36 @@ impl Display for PieceColor {
     }
 }
 
+#[derive(Clone)]
 pub struct Piece {
-    pub kind: PieceKindRef,
+    pub kind: String,
     pub color: PieceColor,
     pub position: Position,
-    pub history: Vec<Position>,
+    // pub history: Vec<Position>,
     pub last_moved: Option<usize>,
 }
 
 impl Piece {
-    pub fn new(kind: PieceKindRef, color: PieceColor, position: Position) -> Self {
+    pub fn new(kind: String, color: PieceColor, position: Position) -> Self {
         Self {
             kind,
             color,
             position,
-            history: vec![],
+            // history: vec![],
             last_moved: None,
         }
+    }
+}
+
+impl IntoLua for &Piece {
+    fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
+        let piece = lua.create_table_with_capacity(0, 4)?;
+
+        piece.set("kind", self.kind.clone())?;
+        piece.set("color", self.color.to_string())?;
+        piece.set("position", self.position)?;
+        piece.set("last_moved", self.last_moved)?;
+
+        Ok(mlua::Value::Table(piece))
     }
 }

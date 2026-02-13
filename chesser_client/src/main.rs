@@ -4,8 +4,7 @@ use bevy::prelude::*;
 use bevy_egui::egui;
 
 use chesser_core::{
-    board::Board,
-    kind::*,
+    game::Game,
     moves::{Move, MoveKind},
     piece::{Piece, PieceColor},
     position::Position,
@@ -17,21 +16,15 @@ pub fn play_move_sound(asset_server: &Res<AssetServer>, commands: &mut Commands,
     commands.spawn(AudioPlayer::new(asset_server.load(file_name)));
 }
 
-#[derive(Resource)]
-struct GameInfo {
-    board: Board,
+#[derive(Default, Resource)]
+struct Interface {
     selection: Option<Position>,
     hints: HashMap<Position, Move>,
 }
 
-impl Default for GameInfo {
-    fn default() -> Self {
-        Self {
-            board: Board::standard(),
-            selection: None,
-            hints: HashMap::new(),
-        }
-    }
+#[derive(Resource)]
+struct GameResource {
+    inner: Game,
 }
 
 fn main() {
@@ -42,12 +35,24 @@ fn main() {
         .add_systems(Startup, (setup_camera_system, setup_textures_system))
         .add_systems(bevy_egui::EguiPrimaryContextPass, ui_system)
         .add_systems(Update, handle_ui_events)
-        .init_resource::<GameInfo>()
+        .init_resource::<Interface>()
         .insert_resource(PieceTextureIds {
             map: HashMap::new(),
         })
+        .insert_resource(GameResource {
+            inner: {
+                let mut game = Game::default();
+                game.load_piece_configs("./pieces");
+                game.register_helpers().unwrap();
+                game
+            },
+        })
         .run();
 }
+
+// fn heartbeat_system() {
+//     println!("frame");
+// }
 
 fn setup_camera_system(mut commands: Commands) {
     commands.spawn(Camera2d);
@@ -77,22 +82,22 @@ fn setup_textures_system(
     mut contexts: bevy_egui::EguiContexts,
     asset_server: Res<AssetServer>,
 ) {
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, Pawn);
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, Knight);
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, Bishop);
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, Rook);
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, King);
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, Queen);
+    register_piece_texture(&mut textures, &mut contexts, &asset_server, "pawn");
+    register_piece_texture(&mut textures, &mut contexts, &asset_server, "knight");
+    register_piece_texture(&mut textures, &mut contexts, &asset_server, "bishop");
+    register_piece_texture(&mut textures, &mut contexts, &asset_server, "rook");
+    register_piece_texture(&mut textures, &mut contexts, &asset_server, "king");
+    register_piece_texture(&mut textures, &mut contexts, &asset_server, "queen");
 }
 
 fn register_piece_texture(
     textures: &mut ResMut<PieceTextureIds>,
     contexts: &mut bevy_egui::EguiContexts,
     asset_server: &Res<AssetServer>,
-    kind: impl PieceKind,
+    kind: &str,
 ) {
     for color in ["white", "black"] {
-        let name = format!("{}_{}", color, kind.asset());
+        let name = format!("{}_{}", color, kind);
         let handle: Handle<Image> = asset_server.load(format!("pieces/{name}.png"));
         let id = contexts.add_image(bevy_egui::EguiTextureHandle::Strong(handle));
 
@@ -114,42 +119,45 @@ fn draw_texture(ui: &egui::Ui, center: egui::Pos2, texture_id: &egui::TextureId)
 
 fn handle_click(
     position: Position,
-    game: &mut ResMut<GameInfo>,
+    interface: &mut ResMut<Interface>,
+    game: &mut ResMut<GameResource>,
     asset_server: &Res<AssetServer>,
     commands: &mut Commands,
 ) {
-    if let Some(old_selection) = game.selection {
-        game.selection = None;
+    if let Some(old_selection) = interface.selection {
+        interface.selection = None;
 
-        if let Some(the_move) = game.hints.get(&position) {
+        if let Some(the_move) = interface.hints.get(&position) {
             let sound_file = match the_move.kind {
-                MoveKind::Passive => match PieceColor::from_turn_count(game.board.turn_count) {
-                    PieceColor::White => "move-self",
-                    PieceColor::Black => "move-opponent",
-                },
+                MoveKind::Passive => {
+                    match PieceColor::from_turn_count(game.inner.board.turn_count) {
+                        PieceColor::White => "move-self",
+                        PieceColor::Black => "move-opponent",
+                    }
+                }
                 MoveKind::Capture(_) => "capture",
             };
 
             let the_move = the_move.clone();
 
-            game.board.perform_move(old_selection, &the_move);
+            game.inner.board.perform_move(old_selection, &the_move);
 
             play_move_sound(asset_server, commands, sound_file);
         }
 
-        game.hints.clear();
-    } else if let Some(piece) = game.board.get_piece(position)
-        && piece.color == PieceColor::from_turn_count(game.board.turn_count)
+        interface.hints.clear();
+    } else if let Some(piece) = game.inner.board.get_piece(position)
+        && piece.color == PieceColor::from_turn_count(game.inner.board.turn_count)
     {
-        let hints = piece
-            .kind
-            .available_moves(piece, &game.board)
+        let hints = game
+            .inner
+            .get_available_moves(&piece.kind, &game.inner.board, position)
             .into_iter()
             .map(|m| (m.destination, m))
             .collect();
 
-        game.selection = Some(position);
-        game.hints = hints;
+        interface.selection = Some(position);
+        interface.hints = hints;
     }
 }
 
@@ -159,7 +167,7 @@ pub enum UiEvent {
     SquareRightClicked(Position),
 }
 
-fn draw_player_info(ui: &mut egui::Ui, game: &GameInfo) {
+fn draw_player_info(ui: &mut egui::Ui, game: &Game) {
     ui.label(
         egui::RichText::new(format!(
             "Current player: {}",
@@ -168,27 +176,27 @@ fn draw_player_info(ui: &mut egui::Ui, game: &GameInfo) {
         .text_style(egui::TextStyle::Heading),
     );
 
-    ui.label(
-        egui::RichText::new(format!(
-            "White points: {}",
-            game.board.captures[&PieceColor::White]
-                .iter()
-                .map(|k| k.value())
-                .sum::<i32>()
-        ))
-        .text_style(egui::TextStyle::Body),
-    );
+    // ui.label(
+    //     egui::RichText::new(format!(
+    //         "White points: {}",
+    //         game.board.captures[&PieceColor::White]
+    //             .iter()
+    //             .map(|k| k.value())
+    //             .sum::<i32>()
+    //     ))
+    //     .text_style(egui::TextStyle::Body),
+    // );
 
-    ui.label(
-        egui::RichText::new(format!(
-            "Black points: {}",
-            game.board.captures[&PieceColor::Black]
-                .iter()
-                .map(|k| k.value())
-                .sum::<i32>()
-        ))
-        .text_style(egui::TextStyle::Body),
-    );
+    // ui.label(
+    //     egui::RichText::new(format!(
+    //         "Black points: {}",
+    //         game.board.captures[&PieceColor::Black]
+    //             .iter()
+    //             .map(|k| k.value())
+    //             .sum::<i32>()
+    //     ))
+    //     .text_style(egui::TextStyle::Body),
+    // );
 }
 
 fn allocate_board_cells(ui: &mut egui::Ui) -> Vec<Vec<(egui::Rect, egui::Response)>> {
@@ -218,7 +226,7 @@ fn paint_cell_piece(
     rect: egui::Rect,
     response: &egui::Response,
     position: Position,
-    game: &GameInfo,
+    game: &Game,
     textures: &Res<PieceTextureIds>,
 ) {
     let base_color = if (position.row() + position.column()).is_multiple_of(2) {
@@ -244,7 +252,7 @@ fn paint_cell_strokes(
     ui: &egui::Ui,
     rect: egui::Rect,
     position: Position,
-    game: &GameInfo,
+    game: &Interface,
     cells: &[Vec<(egui::Rect, egui::Response)>],
 ) {
     if game.selection == Some(position) {
@@ -289,7 +297,7 @@ fn paint_cell_strokes(
 }
 
 fn draw_piece(ui: &egui::Ui, rect: egui::Rect, piece: &Piece, textures: &PieceTextureIds) {
-    let icon_name = format!("{}_{}", piece.color.text(), piece.kind.asset());
+    let icon_name = format!("{}_{}", piece.color.text(), piece.kind);
 
     if let Some(texture_id) = textures.map.get(&icon_name) {
         draw_texture(ui, rect.center(), texture_id);
@@ -298,14 +306,15 @@ fn draw_piece(ui: &egui::Ui, rect: egui::Rect, piece: &Piece, textures: &PieceTe
 
 fn ui_system(
     mut contexts: bevy_egui::EguiContexts,
-    game: ResMut<GameInfo>,
+    interface: ResMut<Interface>,
+    game: ResMut<GameResource>,
     textures: Res<PieceTextureIds>,
     mut ui_events: MessageWriter<UiEvent>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?;
 
     egui::Window::new("Chess").show(ctx, |ui| {
-        draw_player_info(ui, &game);
+        draw_player_info(ui, &game.inner);
 
         let original_spacing = ui.spacing_mut().item_spacing;
         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
@@ -316,8 +325,8 @@ fn ui_system(
             for (column, (rect, response)) in cell_row.iter().enumerate() {
                 let position = Position::new(row, column);
 
-                paint_cell_piece(ui, *rect, response, position, &game, &textures);
-                paint_cell_strokes(ui, *rect, position, &game, &cells);
+                paint_cell_piece(ui, *rect, response, position, &game.inner, &textures);
+                paint_cell_strokes(ui, *rect, position, &interface, &cells);
 
                 if response.clicked() {
                     ui_events.write(UiEvent::SquareClicked(position));
@@ -337,20 +346,27 @@ fn ui_system(
 
 fn handle_ui_events(
     mut events: MessageReader<UiEvent>,
-    mut game: ResMut<GameInfo>,
+    mut interface: ResMut<Interface>,
+    mut game: ResMut<GameResource>,
     asset_server: Res<AssetServer>,
     mut commands: Commands,
 ) {
     for event in events.read() {
         match event {
             UiEvent::SquareClicked(position) => {
-                handle_click(*position, &mut game, &asset_server, &mut commands);
+                handle_click(
+                    *position,
+                    &mut interface,
+                    &mut game,
+                    &asset_server,
+                    &mut commands,
+                );
             }
             UiEvent::SquareRightClicked(position) => {
-                if let Some(piece) = game.board.get_piece(*position) {
+                if let Some(piece) = game.inner.board.get_piece(*position) {
                     println!(
                         "{} {{ color: {}, position: {} }}",
-                        piece.kind.name(),
+                        piece.kind,
                         piece.color,
                         piece.position.as_notation()
                     );

@@ -13,7 +13,7 @@ use tower_http::{
 
 #[derive(Clone)]
 struct AppState {
-    pool: Arc<SqlitePool>,
+    _pool: Arc<SqlitePool>,
 }
 
 struct HttpServer {
@@ -46,7 +46,7 @@ impl HttpServer {
 
         let router = Router::new()
             .with_state(AppState {
-                pool: Arc::new(pool),
+                _pool: Arc::new(pool),
             })
             .layer(NormalizePathLayer::trim_trailing_slash())
             .layer(cors);

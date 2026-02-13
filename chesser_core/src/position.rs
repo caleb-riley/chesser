@@ -57,6 +57,31 @@ impl Display for Position {
     }
 }
 
+impl mlua::IntoLua for Position {
+    fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
+        let table = lua.create_table_from([("row", self.row()), ("column", self.column())])?;
+
+        Ok(mlua::Value::Table(table))
+    }
+}
+
+impl mlua::FromLua for Position {
+    fn from_lua(value: mlua::Value, _lua: &mlua::Lua) -> mlua::Result<Self> {
+        let mlua::Value::Table(table) = value else {
+            return Err(mlua::Error::FromLuaConversionError {
+                from: value.type_name(),
+                to: "Position".to_string(),
+                message: Some("expected table with fields 'row' and 'col'".into()),
+            });
+        };
+
+        let row: usize = table.get("row")?;
+        let col: usize = table.get("column")?;
+
+        Ok(Position::new(row, col))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Offset(isize, isize);
 
@@ -72,10 +97,6 @@ impl Offset {
     pub fn delta_column(&self) -> isize {
         self.1
     }
-
-    // pub fn as_parts(&self) -> (isize, isize) {
-    //     (self.0, self.1)
-    // }
 
     pub fn scale_by(&self, factor: isize) -> Self {
         Self(self.0 * factor, self.1 * factor)
