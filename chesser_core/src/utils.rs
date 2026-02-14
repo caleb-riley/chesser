@@ -52,16 +52,16 @@ pub fn available_positions_in_directions(
     positions
 }
 
-pub fn generate_moves(positions: HashSet<Position>, piece: &Piece, board: &Board) -> HashSet<Move> {
-    let mut moves = HashSet::new();
+pub fn generate_moves(positions: HashSet<Position>, piece: &Piece, board: &Board) -> Vec<Move> {
+    let mut moves = vec![];
 
     for position in positions {
         if let Some(target) = board.get_piece(position) {
             if target.color != piece.color {
-                moves.insert(Move::new(position, MoveKind::Capture(vec![position])));
+                moves.push(Move::new(position, MoveKind::Capture(vec![position])));
             }
         } else {
-            moves.insert(Move::new(position, MoveKind::Passive));
+            moves.push(Move::new(position, MoveKind::Passive));
         }
     }
 

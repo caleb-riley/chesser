@@ -1,7 +1,7 @@
 use crate::{
     board::Board,
     moves::{Move, MoveKind},
-    position::Position,
+    position::{Offset, Position},
 };
 
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ pub struct PieceConfig {
 
 impl PieceConfig {
     fn from_script(lua: &mlua::Lua, id: &str) -> Self {
-        let script_path = format!("./pieces/{}.lua", id);
+        let script_path = format!("./lua/pieces/{}.lua", id);
         let script = std::fs::read_to_string(script_path).unwrap();
 
         let piece_data: mlua::Table = lua.load(script).eval().unwrap();
@@ -31,20 +31,17 @@ impl PieceConfig {
         self.value
     }
 
-    pub fn get_available_moves(&self, board: &Board, position: Position) -> Vec<Move> {
-        self.available_moves.call((board, position)).unwrap()
+    pub fn get_available_moves<'a>(
+        &self,
+        lua: &'a mlua::Lua,
+        board: &'a Board,
+        position: Position,
+    ) -> Vec<Move> {
+        let userdata = lua.create_userdata(board.clone()).unwrap();
+
+        self.available_moves.call((userdata, position)).unwrap()
     }
 }
-
-// fn vec_into_lua<T: mlua::IntoLua>(lua: &mlua::Lua, vec: Vec<T>) -> mlua::Result<mlua::Value> {
-//     let table = lua.create_table()?; // create an empty Lua table
-
-//     for (i, item) in vec.into_iter().enumerate() {
-//         table.set(i + 1, item)?; // Lua is 1-indexed
-//     }
-
-//     Ok(mlua::Value::Table(table))
-// }
 
 pub struct Game {
     pub pieces: HashMap<String, PieceConfig>,
@@ -75,11 +72,10 @@ impl Game {
         self.get_piece_config(id).unwrap().get_value()
     }
 
-    pub fn get_available_moves(&self, id: &str, board: &Board, position: Position) -> Vec<Move> {
-        println!("{id}");
+    pub fn get_available_moves(&self, id: &str, position: Position) -> Vec<Move> {
         self.get_piece_config(id)
             .unwrap()
-            .get_available_moves(board, position)
+            .get_available_moves(&self.lua, &self.board, position)
     }
 
     pub fn register_helpers(&self) -> mlua::Result<()> {
@@ -109,6 +105,12 @@ impl Game {
             .lua
             .create_function(move |_, (row, column)| Ok(Position::new(row, column)))?;
 
+        let make_offset = self
+            .lua
+            .create_function(move |_, (delta_row, delta_column)| {
+                Ok(Offset::new(delta_row, delta_column))
+            })?;
+
         let make_passive_move = self
             .lua
             .create_function(|_, destination| Ok(Move::new(destination, MoveKind::Passive)))?;
@@ -117,9 +119,29 @@ impl Game {
             Ok(Move::new(destination, MoveKind::Capture(captures)))
         })?;
 
+        let concat_tables =
+            self.lua
+                .create_function(|lua, (left, right): (mlua::Table, mlua::Table)| {
+                    let new_table = lua.create_table()?;
+
+                    for value in left.sequence_values::<mlua::Value>() {
+                        new_table.push(value?)?;
+                    }
+
+                    for value in right.sequence_values::<mlua::Value>() {
+                        new_table.push(value?)?;
+                    }
+
+                    Ok(new_table)
+                })?;
+
         utils.set("make_position", make_position)?;
+        utils.set("make_offset", make_offset)?;
+
         utils.set("make_passive_move", make_passive_move)?;
         utils.set("make_capture_move", make_capture_move)?;
+
+        utils.set("concat_tables", concat_tables)?;
 
         self.lua.globals().set("utils", utils)?;
 

@@ -71,7 +71,7 @@ impl mlua::FromLua for Position {
             return Err(mlua::Error::FromLuaConversionError {
                 from: value.type_name(),
                 to: "Position".to_string(),
-                message: Some("expected table with fields 'row' and 'col'".into()),
+                message: Some("expected table with fields 'row' and 'column'".into()),
             });
         };
 
@@ -98,6 +98,10 @@ impl Offset {
         self.1
     }
 
+    pub fn as_parts(&self) -> (isize, isize) {
+        (self.0, self.1)
+    }
+
     pub fn scale_by(&self, factor: isize) -> Self {
         Self(self.0 * factor, self.1 * factor)
     }
@@ -110,5 +114,33 @@ impl Offset {
 impl Display for Offset {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {})", self.0, self.1)
+    }
+}
+
+impl mlua::IntoLua for Offset {
+    fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
+        let table = lua.create_table_from([
+            ("delta_row", self.delta_row()),
+            ("delta_column", self.delta_column()),
+        ])?;
+
+        Ok(mlua::Value::Table(table))
+    }
+}
+
+impl mlua::FromLua for Offset {
+    fn from_lua(value: mlua::Value, _lua: &mlua::Lua) -> mlua::Result<Self> {
+        let mlua::Value::Table(table) = value else {
+            return Err(mlua::Error::FromLuaConversionError {
+                from: value.type_name(),
+                to: "Offset".to_string(),
+                message: Some("expected table with fields 'delta_row' and 'delta_column'".into()),
+            });
+        };
+
+        let delta_row: isize = table.get("delta_row")?;
+        let delta_column: isize = table.get("delta_column")?;
+
+        Ok(Offset::new(delta_row, delta_column))
     }
 }

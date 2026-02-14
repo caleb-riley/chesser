@@ -1,6 +1,9 @@
 return {
     value = 5,
-    available_moves = function(position)
-        return {}
+
+    ---@param board Board
+    ---@param position Position
+    available_moves = function(board, position)
+        return board:get_perpendicular_moves(position)
     end
 }

@@ -42,17 +42,13 @@ fn main() {
         .insert_resource(GameResource {
             inner: {
                 let mut game = Game::default();
-                game.load_piece_configs("./pieces");
                 game.register_helpers().unwrap();
+                game.load_piece_configs("./lua/pieces/");
                 game
             },
         })
         .run();
 }
-
-// fn heartbeat_system() {
-//     println!("frame");
-// }
 
 fn setup_camera_system(mut commands: Commands) {
     commands.spawn(Camera2d);
@@ -151,7 +147,7 @@ fn handle_click(
     {
         let hints = game
             .inner
-            .get_available_moves(&piece.kind, &game.inner.board, position)
+            .get_available_moves(&piece.kind, position)
             .into_iter()
             .map(|m| (m.destination, m))
             .collect();
@@ -176,27 +172,27 @@ fn draw_player_info(ui: &mut egui::Ui, game: &Game) {
         .text_style(egui::TextStyle::Heading),
     );
 
-    // ui.label(
-    //     egui::RichText::new(format!(
-    //         "White points: {}",
-    //         game.board.captures[&PieceColor::White]
-    //             .iter()
-    //             .map(|k| k.value())
-    //             .sum::<i32>()
-    //     ))
-    //     .text_style(egui::TextStyle::Body),
-    // );
+    ui.label(
+        egui::RichText::new(format!(
+            "White points: {}",
+            game.board.captures[&PieceColor::White]
+                .iter()
+                .map(|k| game.pieces.get(k).unwrap().get_value())
+                .sum::<i32>()
+        ))
+        .text_style(egui::TextStyle::Body),
+    );
 
-    // ui.label(
-    //     egui::RichText::new(format!(
-    //         "Black points: {}",
-    //         game.board.captures[&PieceColor::Black]
-    //             .iter()
-    //             .map(|k| k.value())
-    //             .sum::<i32>()
-    //     ))
-    //     .text_style(egui::TextStyle::Body),
-    // );
+    ui.label(
+        egui::RichText::new(format!(
+            "Black points: {}",
+            game.board.captures[&PieceColor::Black]
+                .iter()
+                .map(|k| game.pieces.get(k).unwrap().get_value())
+                .sum::<i32>()
+        ))
+        .text_style(egui::TextStyle::Body),
+    );
 }
 
 fn allocate_board_cells(ui: &mut egui::Ui) -> Vec<Vec<(egui::Rect, egui::Response)>> {

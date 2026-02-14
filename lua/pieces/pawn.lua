@@ -1,17 +1,23 @@
 return {
     value = 1,
+
+    ---@param board Board
+    ---@param position Position
     available_moves = function(board, position)
-        -- utils.diagonal_moves(position)
-        -- print(board:get_piece({ row = 0, col = 4 }).kind)
+        local piece = board:get_piece(position)
 
-        local moves = {}
-
-        for column = 1, 8 do
-            local target = utils.make_position(0, column - 1)
-
-            table.insert(moves, utils.make_capture_move(target, { target }))
+        if piece == nil then
+            return {}
         end
 
-        return moves
+        if piece.color == "White" then
+            local destination = utils.make_position(position.row - 1, position.column)
+
+            return { utils.make_passive_move(destination) }
+        else
+            local destination = utils.make_position(position.row + 1, position.column)
+
+            return { utils.make_passive_move(destination) }
+        end
     end
 }

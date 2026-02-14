@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 
-use mlua::IntoLua;
+use mlua::{IntoLua, UserData};
 
 use crate::{
     moves::{Move, MoveKind},
     piece::{Piece, PieceColor},
-    position::Position,
+    position::{Offset, Position},
+    utils,
 };
 
+#[derive(Clone)]
 pub struct Board {
     pub dimensions: usize,
     pub turn_count: usize,
@@ -30,26 +32,42 @@ fn standard_setup() -> Vec<Vec<Option<Piece>>> {
         )));
     }
 
-    for index in 0..8 {
-        pieces[1].push(Some(Piece::new(
-            "pawn".to_owned(),
-            PieceColor::Black,
-            Position::new(1, index),
-        )));
-    }
-
-    for board_row in pieces.iter_mut().skip(2).take(4) {
-        for _ in 0..8 {
-            board_row.push(None);
+    if true {
+        for index in 0..8 {
+            pieces[1].push(Some(Piece::new(
+                "pawn".to_owned(),
+                PieceColor::Black,
+                Position::new(1, index),
+            )));
         }
-    }
 
-    for index in 0..8 {
-        pieces[6].push(Some(Piece::new(
-            "pawn".to_owned(),
-            PieceColor::White,
-            Position::new(6, index),
-        )));
+        for board_row in pieces.iter_mut().skip(2).take(4) {
+            for _ in 0..8 {
+                board_row.push(None);
+            }
+        }
+
+        for index in 0..8 {
+            pieces[6].push(Some(Piece::new(
+                "pawn".to_owned(),
+                PieceColor::White,
+                Position::new(6, index),
+            )));
+        }
+    } else {
+        for _ in 0..8 {
+            pieces[1].push(None);
+        }
+
+        for board_row in pieces.iter_mut().skip(2).take(4) {
+            for _ in 0..8 {
+                board_row.push(None);
+            }
+        }
+
+        for _ in 0..8 {
+            pieces[6].push(None);
+        }
     }
 
     for (index, kind) in specials.iter().enumerate() {
@@ -126,32 +144,63 @@ impl Board {
     }
 }
 
-impl IntoLua for &Board {
-    fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
-        let rows = lua.create_table_with_capacity(self.dimensions, 0)?;
+// impl IntoLua for &Board {
+//     fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
+//         let rows = lua.create_table_with_capacity(self.dimensions, 0)?;
 
-        for row_index in 0..self.dimensions {
-            let row = lua.create_table_with_capacity(self.dimensions, 0)?;
+//         for row_index in 0..self.dimensions {
+//             let row = lua.create_table_with_capacity(self.dimensions, 0)?;
 
-            for column_index in 0..self.dimensions {
-                if let Some(piece) = &self.pieces[row_index][column_index] {
-                    row.push(piece.into_lua(lua)?)?;
-                } else {
-                    row.push(mlua::Value::Nil)?;
-                }
-            }
+//             for column_index in 0..self.dimensions {
+//                 if let Some(piece) = &self.pieces[row_index][column_index] {
+//                     row.push(piece.into_lua(lua)?)?;
+//                 } else {
+//                     row.push(mlua::Value::Nil)?;
+//                 }
+//             }
 
-            rows.push(row)?;
-        }
+//             rows.push(row)?;
+//         }
 
-        Ok(mlua::Value::Table(rows))
-    }
-}
-
-// impl UserData for &Board {
-//     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
-//         methods.add_method("get_piece", |lua, board, position| {
-//             Ok(board.get_piece(position).unwrap().into_lua(lua))
-//         });
+//         Ok(mlua::Value::Table(rows))
 //     }
 // }
+
+impl UserData for Board {
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
+        methods.add_method("get_piece", |lua, board, position| {
+            Ok(board.get_piece(position).unwrap().into_lua(lua))
+        });
+
+        methods.add_method("get_perpendicular_moves", |_, board, position| {
+            let piece = board.get_piece(position).unwrap();
+            let positions =
+                utils::available_positions_in_directions(piece, board, &utils::PERPENDICULAR);
+
+            Ok(utils::generate_moves(positions, piece, board))
+        });
+
+        methods.add_method("get_diagonal_moves", |_, board, position| {
+            let piece = board.get_piece(position).unwrap();
+            let positions =
+                utils::available_positions_in_directions(piece, board, &utils::DIAGONAL);
+
+            Ok(utils::generate_moves(positions, piece, board))
+        });
+
+        methods.add_method(
+            "get_directional_moves",
+            |_, board, (position, offsets): (Position, Vec<Offset>)| {
+                let piece = board.get_piece(position).unwrap();
+                let offsets = offsets
+                    .into_iter()
+                    .map(|offset| offset.as_parts())
+                    .collect::<Vec<_>>();
+
+                let positions = utils::available_positions_in_directions(piece, board, &offsets);
+
+                Ok(utils::generate_moves(positions, piece, board))
+            },
+        );
+    }
+}

@@ -1,6 +1,12 @@
 return {
     value = 9,
-    available_moves = function(position)
-        return {}
+
+    ---@param board Board
+    ---@param position Position
+    available_moves = function(board, position)
+        local diagonal_moves = board:get_diagonal_moves(position)
+        local perpendicular_moves = board:get_perpendicular_moves(position)
+
+        return utils.concat_tables(diagonal_moves, perpendicular_moves)
     end
 }
