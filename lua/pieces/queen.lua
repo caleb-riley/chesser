@@ -5,6 +5,7 @@ return {
     ---@param board Board
     ---@param piece Piece
     ---@param position Position
+    ---@return Move[]
     available_moves = function(board, piece, position)
         local diagonal_moves = board:get_diagonal_moves(position)
         local perpendicular_moves = board:get_perpendicular_moves(position)

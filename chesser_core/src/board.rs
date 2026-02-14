@@ -121,7 +121,7 @@ impl UserData for Board {
                 &utils::PERPENDICULAR,
             );
 
-            Ok(utils::generate_moves(positions, piece, board))
+            Ok(utils::generate_moves(positions, position, piece, board))
         });
 
         methods.add_method("get_diagonal_moves", |_, board, position| {
@@ -129,7 +129,7 @@ impl UserData for Board {
             let positions =
                 utils::available_positions_in_directions(position, piece, board, &utils::DIAGONAL);
 
-            Ok(utils::generate_moves(positions, piece, board))
+            Ok(utils::generate_moves(positions, position, piece, board))
         });
 
         methods.add_method(
@@ -144,15 +144,11 @@ impl UserData for Board {
                 let positions =
                     utils::available_positions_in_directions(position, piece, board, &offsets);
 
-                Ok(utils::generate_moves(positions, piece, board))
+                Ok(utils::generate_moves(positions, position, piece, board))
             },
         );
 
         methods.add_method("get_dimensions", |_, board, ()| Ok(board.dimensions));
-
-        methods.add_method("in_bounds", |_, board, position: Position| {
-            Ok(position.restrict_to(board.dimensions).is_some())
-        });
 
         methods.add_method("turn_count", |_, board, ()| Ok(board.turn_count));
     }

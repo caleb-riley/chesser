@@ -1,8 +1,4 @@
-use crate::{
-    board::Board,
-    moves::{Move, MoveKind},
-    position::Position,
-};
+use crate::{board::Board, moves::Move, position::Position};
 
 use std::collections::HashMap;
 
@@ -82,19 +78,13 @@ impl Game {
     }
 
     pub fn register_helpers(&self) -> mlua::Result<()> {
-        let builtins = std::fs::read_to_string("./lua/builtins.lua")?;
+        let builtins_script = std::fs::read_to_string("./lua/builtins.lua")?;
+        self.lua.load(&builtins_script).exec()?;
 
-        self.lua.load(&builtins).exec()?;
+        let utils_script = std::fs::read_to_string("./lua/utils.lua")?;
+        self.lua.load(&utils_script).exec()?;
 
-        let utils = self.lua.create_table()?;
-
-        let make_passive_move = self
-            .lua
-            .create_function(|_, destination| Ok(Move::new(destination, MoveKind::Passive)))?;
-
-        let make_capture_move = self.lua.create_function(|_, (destination, captures)| {
-            Ok(Move::new(destination, MoveKind::Capture(captures)))
-        })?;
+        let utils: mlua::Table = self.lua.globals().get("utils")?;
 
         let concat_tables =
             self.lua
@@ -112,12 +102,7 @@ impl Game {
                     Ok(new_table)
                 })?;
 
-        utils.set("make_passive_move", make_passive_move)?;
-        utils.set("make_capture_move", make_capture_move)?;
-
         utils.set("concat_tables", concat_tables)?;
-
-        self.lua.globals().set("utils", utils)?;
 
         Ok(())
     }

@@ -20,7 +20,22 @@ impl Position {
         (self.0, self.1)
     }
 
-    pub fn offset_by(&self, offset: Offset) -> Self {
+    pub fn offset_by_checked(&self, offset: Offset, dimensions: usize) -> Option<Self> {
+        let new_row = self.0 as isize + offset.delta_row();
+        let new_column = self.1 as isize + offset.delta_column();
+
+        if new_row < 0
+            || new_row >= dimensions as isize
+            || new_column < 0
+            || new_column >= dimensions as isize
+        {
+            return None;
+        }
+
+        Some(Self(new_row as usize, new_column as usize))
+    }
+
+    pub fn offset_by_unchecked(&self, offset: Offset) -> Self {
         Self(
             (self.0 as isize + offset.delta_row()) as usize,
             (self.1 as isize + offset.delta_column()) as usize,

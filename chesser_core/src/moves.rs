@@ -10,13 +10,18 @@ pub enum MoveKind {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Move {
+    pub origin: Position,
     pub destination: Position,
     pub kind: MoveKind,
 }
 
 impl Move {
-    pub fn new(destination: Position, kind: MoveKind) -> Self {
-        Self { destination, kind }
+    pub fn new(origin: Position, destination: Position, kind: MoveKind) -> Self {
+        Self {
+            origin,
+            destination,
+            kind,
+        }
     }
 }
 
@@ -32,6 +37,9 @@ impl mlua::FromLua for Move {
                 });
             }
         };
+
+        let origin_table: mlua::Table = table.get("origin")?;
+        let origin = Position::from_lua(mlua::Value::Table(origin_table), _lua)?;
 
         let dest_table: mlua::Table = table.get("destination")?;
         let destination = Position::from_lua(mlua::Value::Table(dest_table), _lua)?;
@@ -87,7 +95,7 @@ impl mlua::FromLua for Move {
             }
         };
 
-        Ok(Move { destination, kind })
+        Ok(Move::new(origin, destination, kind))
     }
 }
 
@@ -95,6 +103,7 @@ impl IntoLua for Move {
     fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
         let table = lua.create_table()?;
 
+        table.set("origin", self.origin.into_lua(lua)?)?;
         table.set("destination", self.destination.into_lua(lua)?)?;
 
         match self.kind {

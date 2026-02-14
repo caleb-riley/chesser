@@ -1,7 +1,8 @@
 ---@class Position
 ---@field row integer
 ---@field column integer
----@field offset_by fun(self: Position, offset: Offset): Position
+---@field offset_by_checked fun(self: Position, offset: Offset, dimensions: integer): Position | nil
+---@field offset_by_unchecked fun(self: Position, offset: Offset): Position
 ---@field offset_to fun(self: Position, position: Position): Offset
 
 Position = {}
@@ -21,8 +22,22 @@ end
 
 ---@param self Position
 ---@param offset Offset
+---@param dimensions integer
+---@return Position | nil
+function Position:offset_by_checked(offset, dimensions)
+    local position = Position.new(self.row + offset.delta_row, self.column + offset.delta_column)
+
+    if position.row < 0 or position.row >= dimensions or position.column < 0 or position.column >= dimensions then
+        return nil
+    end
+
+    return position
+end
+
+---@param self Position
+---@param offset Offset
 ---@return Position
-function Position:offset_by(offset)
+function Position:offset_by_unchecked(offset)
     return Position.new(self.row + offset.delta_row, self.column + offset.delta_column)
 end
 

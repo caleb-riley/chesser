@@ -12,6 +12,7 @@ return {
     ---@param board Board
     ---@param piece Piece
     ---@param position Position
+    ---@return Move[]
     available_moves = function(board, piece, position)
         return board:get_directional_moves(position, KING_OFFSETS)
     end,

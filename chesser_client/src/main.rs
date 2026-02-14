@@ -145,12 +145,21 @@ fn handle_click(
     } else if let Some(piece) = game.inner.board.get_piece(position)
         && piece.color == PieceColor::from_turn_count(game.inner.board.turn_count)
     {
+        let start = std::time::Instant::now();
+
         let hints = game
             .inner
             .get_available_moves(&piece.kind, position)
             .into_iter()
             .map(|m| (m.destination, m))
             .collect();
+
+        let stop = std::time::Instant::now();
+
+        println!(
+            "Computed available moves in {} μs",
+            stop.duration_since(start).as_micros()
+        );
 
         interface.selection = Some(position);
         interface.hints = hints;

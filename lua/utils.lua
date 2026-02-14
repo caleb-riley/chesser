@@ -8,6 +8,7 @@
 ---@field last_moved integer | nil
 
 ---@class Move
+---@field origin Position
 ---@field destination Position
 ---@field kind "passive" | CaptureKind
 
@@ -21,7 +22,6 @@
 ---@field get_diagonal_moves fun(self: Board, position: Position): Move[]
 ---@field get_directional_moves fun(self: Board, position: Position, offsets: Offset[]): Move[]
 ---@field get_dimensions fun(self: Board): integer
----@field in_bounds fun(self: Board, position: Position): boolean
 ---@field turn_count fun(self: Board): integer
 
 ---@type table
@@ -49,17 +49,20 @@ function utils.concat_tables(left, right)
     return {}
 end
 
+---@param origin Position
 ---@param destination Position
 ---@return Move
-function utils.make_passive_move(destination)
-    return { destination = destination, kind = "passive" }
+function utils.make_passive_move(origin, destination)
+    return { origin = origin, destination = destination, kind = "passive" }
 end
 
+---@param origin Position
 ---@param destination Position
 ---@param captures Position[]
 ---@return Move
-function utils.make_capture_move(destination, captures)
+function utils.make_capture_move(origin, destination, captures)
     return {
+        origin = origin,
         destination = destination,
         kind = {
             type = "capture",
