@@ -1,19 +1,25 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc, thread};
 
-use axum::{
-    Router,
-    http::{Method, header::CONTENT_TYPE},
-};
+use axum::http::{Method, header::CONTENT_TYPE};
+use chesser_core::game::Game;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     normalize_path::NormalizePathLayer,
 };
+use uuid::Uuid;
+
+mod api;
+mod transfer;
+
+use crate::api::{Clients, app_router, broadcast};
 
 #[derive(Clone)]
 struct AppState {
     _pool: Arc<SqlitePool>,
+    game: Arc<Game>,
+    clients: Clients,
 }
 
 struct HttpServer {
@@ -30,6 +36,16 @@ impl HttpServer {
     }
 
     async fn start(&self) {
+        let clients: Clients = Arc::default();
+        let clients2 = Arc::clone(&clients);
+
+        thread::spawn(move || {
+            loop {
+                thread::sleep(std::time::Duration::from_secs(1));
+                broadcast(&clients2, &Uuid::new_v4().to_string());
+            }
+        });
+
         let cors = CorsLayer::new()
             .allow_origin(AllowOrigin::predicate(|origin, _| {
                 origin.to_str().is_ok_and(|o| {
@@ -44,9 +60,11 @@ impl HttpServer {
             .await
             .unwrap();
 
-        let router = Router::new()
+        let router = app_router()
             .with_state(AppState {
                 _pool: Arc::new(pool),
+                game: Arc::new(Game::default()),
+                clients,
             })
             .layer(NormalizePathLayer::trim_trailing_slash())
             .layer(cors);
@@ -60,7 +78,7 @@ impl HttpServer {
 #[tokio::main]
 async fn main() {
     let socket_addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    let database_url = "sqlite://../database/data.db";
+    let database_url = "sqlite://./database/data.db";
 
     let http_server = HttpServer::new(socket_addr, database_url);
     http_server.start().await;

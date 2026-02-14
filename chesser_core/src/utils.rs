@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
 use crate::{
+    action::Action,
     board::Board,
-    moves::{Move, MoveKind},
+    moves::Move,
     piece::Piece,
     position::{Offset, Position},
 };
@@ -66,11 +67,24 @@ pub fn generate_moves(
                 moves.push(Move::new(
                     origin,
                     position,
-                    MoveKind::Capture(vec![position]),
+                    vec![
+                        Action::Deletion { position },
+                        Action::Relocate {
+                            origin,
+                            destination: position,
+                        },
+                    ],
                 ));
             }
         } else {
-            moves.push(Move::new(origin, position, MoveKind::Passive));
+            moves.push(Move::new(
+                origin,
+                position,
+                vec![Action::Relocate {
+                    origin,
+                    destination: position,
+                }],
+            ));
         }
     }
 

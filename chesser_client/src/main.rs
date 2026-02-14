@@ -4,11 +4,16 @@ use bevy::prelude::*;
 use bevy_egui::egui;
 
 use chesser_core::{
+    action::Action,
     game::Game,
-    moves::{Move, MoveKind},
+    moves::Move,
     piece::{Piece, PieceColor},
     position::Position,
 };
+
+use crate::network::NetworkClient;
+
+mod network;
 
 pub fn play_move_sound(asset_server: &Res<AssetServer>, commands: &mut Commands, sound: &str) {
     let file_name = format!("sounds/{sound}.mp3");
@@ -35,6 +40,8 @@ fn main() {
         .add_systems(Startup, (setup_camera_system, setup_textures_system))
         .add_systems(bevy_egui::EguiPrimaryContextPass, ui_system)
         .add_systems(Update, handle_ui_events)
+        .add_systems(Update, receive_messages)
+        .add_systems(Startup, network::start_network)
         .init_resource::<Interface>()
         .insert_resource(PieceTextureIds {
             map: HashMap::new(),
@@ -48,6 +55,40 @@ fn main() {
             },
         })
         .run();
+}
+
+async fn send_move(from: &str, to: &str) -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+
+    client
+        .post("http://127.0.0.1:3000/move")
+        .json(&serde_json::json!({ "from": from, "to": to }))
+        .send()
+        .await?
+        .error_for_status()?;
+
+    Ok(())
+}
+
+async fn get_hints(position: &str) -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+
+    client
+        .post("http://127.0.0.1:3000/hints")
+        .json(&serde_json::json!({ "position": position }))
+        .send()
+        .await?
+        .error_for_status()?;
+
+    Ok(())
+}
+
+fn receive_messages(net: Res<NetworkClient>) {
+    let receiver = net.receiver.lock().unwrap();
+
+    while let Ok(msg) = receiver.try_recv() {
+        println!("Received: {}", msg);
+    }
 }
 
 fn setup_camera_system(mut commands: Commands) {
@@ -120,23 +161,22 @@ fn handle_click(
     asset_server: &Res<AssetServer>,
     commands: &mut Commands,
 ) {
-    if let Some(old_selection) = interface.selection {
+    if interface.selection.is_some() {
         interface.selection = None;
 
         if let Some(the_move) = interface.hints.get(&position) {
-            let sound_file = match the_move.kind {
-                MoveKind::Passive => {
-                    match PieceColor::from_turn_count(game.inner.board.turn_count) {
-                        PieceColor::White => "move-self",
-                        PieceColor::Black => "move-opponent",
-                    }
+            let sound_file = if !the_move.contains_deletion() {
+                match PieceColor::from_turn_count(game.inner.board.turn_count) {
+                    PieceColor::White => "move-self",
+                    PieceColor::Black => "move-opponent",
                 }
-                MoveKind::Capture(_) => "capture",
+            } else {
+                "capture"
             };
 
             let the_move = the_move.clone();
 
-            game.inner.board.perform_move(old_selection, &the_move);
+            game.inner.board.perform_move(&the_move);
 
             play_move_sound(asset_server, commands, sound_file);
         }
@@ -257,10 +297,10 @@ fn paint_cell_strokes(
     ui: &egui::Ui,
     rect: egui::Rect,
     position: Position,
-    game: &Interface,
+    interface: &Interface,
     cells: &[Vec<(egui::Rect, egui::Response)>],
 ) {
-    if game.selection == Some(position) {
+    if interface.selection == Some(position) {
         ui.painter().rect_stroke(
             rect,
             CELL_SIZE / 2.0,
@@ -269,10 +309,10 @@ fn paint_cell_strokes(
         );
     }
 
-    if let Some(the_move) = game.hints.get(&position) {
-        let stroke_color = match the_move.kind {
-            MoveKind::Passive => egui::Color32::YELLOW,
-            MoveKind::Capture(_) => egui::Color32::RED,
+    if let Some(the_move) = interface.hints.get(&position) {
+        let stroke_color = match the_move.contains_deletion() {
+            false => egui::Color32::YELLOW,
+            true => egui::Color32::RED,
         };
 
         ui.painter().rect_stroke(
@@ -284,18 +324,18 @@ fn paint_cell_strokes(
 
         let target_cell = &cells[the_move.destination.row()][the_move.destination.column()];
 
-        if let MoveKind::Capture(capture_positions) = &the_move.kind
-            && target_cell.1.hovered()
-        {
-            for capture_pos in capture_positions {
-                let capture_cell = &cells[capture_pos.row()][capture_pos.column()];
+        if the_move.contains_deletion() && target_cell.1.hovered() {
+            for action in &the_move.actions {
+                if let Action::Relocate { destination, .. } = action {
+                    let capture_cell = &cells[destination.row()][destination.column()];
 
-                ui.painter().rect_stroke(
-                    capture_cell.0,
-                    CELL_SIZE / 2.0,
-                    egui::Stroke::new(STROKE_WIDTH, egui::Color32::BLACK),
-                    egui::StrokeKind::Inside,
-                );
+                    ui.painter().rect_stroke(
+                        capture_cell.0,
+                        CELL_SIZE / 2.0,
+                        egui::Stroke::new(STROKE_WIDTH, egui::Color32::BLACK),
+                        egui::StrokeKind::Inside,
+                    );
+                }
             }
         }
     }

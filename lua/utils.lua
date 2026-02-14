@@ -1,20 +1,35 @@
 -- globals.lua
 
+---@alias PieceColor "white" | "black"
+
 ---@class Piece
 ---@field kind string
----@field color string
+---@field color PieceColor
 ---@field position Position
 ---@field history Move[]
 ---@field last_moved integer | nil
 
+---@class RelocationAction
+---@field kind "relocation"
+---@field origin Position
+---@field destination Position
+
+---@class SpawnAction
+---@field kind "spawn"
+---@field position Position
+---@field id string
+---@field color PieceColor
+
+---@class DeletionAction
+---@field kind "deletion"
+---@field position Position
+
+---@alias Action RelocationAction | SpawnAction | DeletionAction
+
 ---@class Move
 ---@field origin Position
 ---@field destination Position
----@field kind "passive" | CaptureKind
-
----@class CaptureKind
----@field type "capture"
----@field captures Position[]
+---@field actions Action[]
 
 ---@class Board
 ---@field get_piece fun(self: Board, position: Position): Piece | nil
@@ -53,7 +68,13 @@ end
 ---@param destination Position
 ---@return Move
 function utils.make_passive_move(origin, destination)
-    return { origin = origin, destination = destination, kind = "passive" }
+    return {
+        origin = origin,
+        destination = destination,
+        actions = {
+            { kind = "relocation", origin = origin, destination = destination },
+        },
+    }
 end
 
 ---@param origin Position
@@ -61,12 +82,24 @@ end
 ---@param captures Position[]
 ---@return Move
 function utils.make_capture_move(origin, destination, captures)
+    local actions = {}
+
+    for _, capture in ipairs(captures) do
+        table.insert(actions, {
+            kind = "deletion",
+            position = capture
+        })
+    end
+
+    table.insert(actions, {
+        kind = "relocation",
+        origin = origin,
+        destination = destination
+    })
+
     return {
         origin = origin,
         destination = destination,
-        kind = {
-            type = "capture",
-            captures = captures,
-        },
+        actions = actions,
     }
 end

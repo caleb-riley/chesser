@@ -1,27 +1,27 @@
 use mlua::IntoLua;
 
-use crate::position::Position;
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum MoveKind {
-    Passive,
-    Capture(Vec<Position>),
-}
+use crate::{action::Action, position::Position};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Move {
     pub origin: Position,
     pub destination: Position,
-    pub kind: MoveKind,
+    pub actions: Vec<Action>,
 }
 
 impl Move {
-    pub fn new(origin: Position, destination: Position, kind: MoveKind) -> Self {
+    pub fn new(origin: Position, destination: Position, actions: Vec<Action>) -> Self {
         Self {
             origin,
             destination,
-            kind,
+            actions,
         }
+    }
+
+    pub fn contains_deletion(&self) -> bool {
+        self.actions
+            .iter()
+            .any(|a| matches!(a, Action::Deletion { .. }))
     }
 }
 
@@ -44,58 +44,15 @@ impl mlua::FromLua for Move {
         let dest_table: mlua::Table = table.get("destination")?;
         let destination = Position::from_lua(mlua::Value::Table(dest_table), _lua)?;
 
-        let kind_value: mlua::Value = table.get("kind")?;
+        let actions_table: mlua::Table = table.get("actions")?;
 
-        let kind = match kind_value {
-            mlua::Value::String(s) => {
-                let kind_str = s.to_str()?.to_string();
+        let mut actions = vec![];
 
-                match kind_str.as_str() {
-                    "passive" => MoveKind::Passive,
-                    _ => {
-                        return Err(mlua::Error::FromLuaConversionError {
-                            from: "string",
-                            to: "MoveKind".to_string(),
-                            message: Some(format!("unknown kind: {}", kind_str)),
-                        });
-                    }
-                }
-            }
+        for action in actions_table.sequence_values::<Action>() {
+            actions.push(action?);
+        }
 
-            mlua::Value::Table(kind_table) => {
-                let kind_type: String = kind_table.get("type")?;
-
-                match kind_type.as_str() {
-                    "capture" => {
-                        let captured_table: mlua::Table = kind_table.get("captures")?;
-
-                        let mut captured_positions = Vec::new();
-                        for pos in captured_table.sequence_values::<Position>() {
-                            captured_positions.push(pos?);
-                        }
-
-                        MoveKind::Capture(captured_positions)
-                    }
-                    _ => {
-                        return Err(mlua::Error::FromLuaConversionError {
-                            from: "table",
-                            to: "MoveKind".to_string(),
-                            message: Some(format!("unknown kind type: {}", kind_type)),
-                        });
-                    }
-                }
-            }
-
-            _ => {
-                return Err(mlua::Error::FromLuaConversionError {
-                    from: kind_value.type_name(),
-                    to: "MoveKind".to_string(),
-                    message: Some("invalid kind format".into()),
-                });
-            }
-        };
-
-        Ok(Move::new(origin, destination, kind))
+        Ok(Move::new(origin, destination, actions))
     }
 }
 
@@ -105,25 +62,7 @@ impl IntoLua for Move {
 
         table.set("origin", self.origin.into_lua(lua)?)?;
         table.set("destination", self.destination.into_lua(lua)?)?;
-
-        match self.kind {
-            MoveKind::Passive => {
-                let s: mlua::String = lua.create_string("passive")?;
-                table.set("kind", s)?;
-            }
-            MoveKind::Capture(captured_positions) => {
-                let kind_table = lua.create_table()?;
-                kind_table.set("type", "capture")?;
-
-                let captured_table = lua.create_table()?;
-                for (i, pos) in captured_positions.into_iter().enumerate() {
-                    captured_table.set(i + 1, pos.into_lua(lua)?)?;
-                }
-
-                kind_table.set("captures", captured_table)?;
-                table.set("kind", kind_table)?;
-            }
-        }
+        table.set("actions", self.actions.into_lua(lua)?)?;
 
         Ok(mlua::Value::Table(table))
     }

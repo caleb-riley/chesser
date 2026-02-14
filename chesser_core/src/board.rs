@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-
-use mlua::{IntoLua, UserData};
+use mlua::IntoLua;
+use std::{collections::HashMap, io::Write};
 
 use crate::{
-    moves::{Move, MoveKind},
+    action::Action,
+    moves::Move,
     piece::{Piece, PieceColor},
     position::{Offset, Position},
     utils,
@@ -72,41 +72,55 @@ impl Board {
         }
     }
 
-    pub fn perform_move(&mut self, position: Position, the_move: &Move) {
+    pub fn perform_move(&mut self, the_move: &Move) {
         self.turn_count += 1;
 
-        let mut piece = self.pieces[position.row()][position.column()]
-            .take()
-            .unwrap();
+        for action in &the_move.actions {
+            match action {
+                Action::Relocate {
+                    origin,
+                    destination,
+                } => {
+                    let mut piece = self.pieces[origin.row()][origin.column()]
+                        .take()
+                        .expect("no piece at origin");
 
-        if let MoveKind::Capture(capture_positions) = &the_move.kind {
-            for capture_position in capture_positions {
-                let captured = self.pieces[capture_position.row()][capture_position.column()]
-                    .take()
-                    .unwrap();
+                    piece.history.push(the_move.clone());
+                    piece.last_moved = Some(self.turn_count);
 
-                self.captures
-                    .get_mut(&piece.color)
-                    .unwrap()
-                    .push(captured.kind);
+                    self.pieces[destination.row()][destination.column()] = Some(piece);
+                }
+
+                Action::Spawn {
+                    position,
+                    id,
+                    color,
+                } => {
+                    let mut id = id.clone();
+
+                    if id == "PROMOTION" {
+                        let mut buffer = String::new();
+
+                        print!("Enter promotion: ");
+                        std::io::stdout().flush().unwrap();
+
+                        std::io::stdin().read_line(&mut buffer).unwrap();
+
+                        id = buffer.trim().to_string();
+                    }
+
+                    self.pieces[position.row()][position.column()] =
+                        Some(Piece::new(id.clone(), color.clone()));
+                }
+                Action::Deletion { position } => {
+                    self.pieces[position.row()][position.column()] = None;
+                }
             }
         }
-
-        println!(
-            "[{}] {} to {}",
-            piece.kind,
-            position.as_notation(),
-            the_move.destination.as_notation()
-        );
-
-        piece.history.push(the_move.clone());
-        piece.last_moved = Some(self.turn_count);
-
-        self.pieces[the_move.destination.row()][the_move.destination.column()] = Some(piece);
     }
 }
 
-impl UserData for Board {
+impl mlua::UserData for Board {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
         methods.add_method("get_piece", |lua, board, position| {
             Ok(board.get_piece(position).into_lua(lua))

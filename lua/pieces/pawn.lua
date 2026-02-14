@@ -7,9 +7,10 @@ return {
     ---@param position Position
     ---@return Move[]
     available_moves = function(board, piece, position)
+        ---@type Move[]
         local moves = {}
 
-        local delta_row = piece.color == "White" and -1 or 1
+        local delta_row = piece.color == "white" and -1 or 1
 
         local forward_one = position:offset_by_checked(Offset.new(delta_row, 0), board:get_dimensions())
 
@@ -51,6 +52,21 @@ return {
                         end
                     end
                 end
+            end
+        end
+
+        for _, move in ipairs(moves) do
+            if move.destination.row == 0 or move.destination.row == board:get_dimensions() - 1 then
+                print("promotion")
+
+                ---@type DeletionAction
+                local deletion = { kind = "deletion", position = move.destination }
+                table.insert(move.actions, deletion)
+
+                ---@type SpawnAction
+                local promotion = { kind = "spawn", position = move.destination, id = "PROMOTION", color = piece.color }
+
+                table.insert(move.actions, promotion)
             end
         end
 
