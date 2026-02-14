@@ -6,6 +6,7 @@ local KNIGHT_OFFSETS = {
 }
 
 return {
+    ---@type integer
     value = 3,
 
     ---@param board Board

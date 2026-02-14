@@ -61,7 +61,7 @@ impl mlua::FromLua for Move {
 
                 match kind_type.as_str() {
                     "capture" => {
-                        let captured_table: mlua::Table = kind_table.get("captured")?;
+                        let captured_table: mlua::Table = kind_table.get("captures")?;
 
                         let mut captured_positions = Vec::new();
                         for pos in captured_table.sequence_values::<Position>() {
@@ -118,7 +118,7 @@ impl IntoLua for Move {
                     captured_table.set(i + 1, pos.into_lua(lua)?)?;
                 }
 
-                kind_table.set("captured", captured_table)?;
+                kind_table.set("captures", captured_table)?;
                 table.set("kind", kind_table)?;
             }
         }

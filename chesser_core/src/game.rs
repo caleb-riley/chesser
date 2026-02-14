@@ -37,9 +37,11 @@ impl PieceConfig {
         board: &'a Board,
         position: Position,
     ) -> Vec<Move> {
-        let userdata = lua.create_userdata(board.clone()).unwrap();
+        let board_userdata = lua.create_userdata(board.clone()).unwrap();
 
-        self.available_moves.call((userdata, position)).unwrap()
+        self.available_moves
+            .call((board_userdata, position))
+            .unwrap()
     }
 }
 

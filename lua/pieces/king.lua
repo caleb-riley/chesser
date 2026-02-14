@@ -6,6 +6,7 @@ local KING_OFFSETS = {
 }
 
 return {
+    ---@type integer
     value = 0,
 
     ---@param board Board

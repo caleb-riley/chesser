@@ -1,4 +1,5 @@
 return {
+    ---@type integer
     value = 5,
 
     ---@param board Board

@@ -1,18 +1,18 @@
 -- globals.lua
 
 ---@class Position
----@field row number
----@field column number
+---@field row integer
+---@field column integer
 
 ---@class Offset
----@field delta_row number
----@field delta_column number
+---@field delta_row integer
+---@field delta_column integer
 
 ---@class Piece
 ---@field kind string
 ---@field color string
 ---@field position Position
----@field last_moved number | nil
+---@field last_moved integer | nil
 
 ---@class Move
 
@@ -21,21 +21,23 @@
 ---@field get_perpendicular_moves fun(self: Board, position: Position): Move[]
 ---@field get_diagonal_moves fun(self: Board, position: Position): Move[]
 ---@field get_directional_moves fun(self: Board, position: Position, offsets: Offset[]): Move[]
+---@field get_dimensions fun(self: Board): integer
+---@field in_bounds fun(self: Board, position: Position): boolean
 
 ---@type table
 _G.utils = {}
 
 ---Returns a table of moves
----@param row number
----@param column number
+---@param row integer
+---@param column integer
 ---@return Position
 function utils.make_position(row, column)
     return {}
 end
 
 ---Returns a table of moves
----@param delta_row number
----@param delta_column number
+---@param delta_row integer
+---@param delta_column integer
 ---@return Offset
 function utils.make_offset(delta_row, delta_column)
     return {}

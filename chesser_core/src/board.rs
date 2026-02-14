@@ -169,7 +169,7 @@ impl Board {
 impl UserData for Board {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
         methods.add_method("get_piece", |lua, board, position| {
-            Ok(board.get_piece(position).unwrap().into_lua(lua))
+            Ok(board.get_piece(position).into_lua(lua))
         });
 
         methods.add_method("get_perpendicular_moves", |_, board, position| {
@@ -202,5 +202,11 @@ impl UserData for Board {
                 Ok(utils::generate_moves(positions, piece, board))
             },
         );
+
+        methods.add_method("get_dimensions", |_, board, ()| Ok(board.dimensions));
+
+        methods.add_method("in_bounds", |_, board, position: Position| {
+            Ok(position.restrict_to(board.dimensions).is_some())
+        });
     }
 }
