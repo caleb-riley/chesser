@@ -9,6 +9,38 @@ use crate::{
     utils,
 };
 
+fn standard_layout() -> Vec<Vec<Option<Piece>>> {
+    let specials: [&'static str; 8] = [
+        "rook", "knight", "bishop", "king", "queen", "bishop", "knight", "rook",
+    ];
+
+    let mut pieces: Vec<Vec<Option<Piece>>> = (0..8).map(|_| vec![]).collect();
+
+    for kind in specials.iter() {
+        pieces[0].push(Some(Piece::new(kind.to_string(), PieceColor::Black)));
+    }
+
+    for _ in 0..8 {
+        pieces[1].push(Some(Piece::new("pawn".to_owned(), PieceColor::Black)));
+    }
+
+    for board_row in pieces.iter_mut().skip(2).take(4) {
+        for _ in 0..8 {
+            board_row.push(None);
+        }
+    }
+
+    for _ in 0..8 {
+        pieces[6].push(Some(Piece::new("pawn".to_owned(), PieceColor::White)));
+    }
+
+    for kind in specials.iter() {
+        pieces[7].push(Some(Piece::new(kind.to_string(), PieceColor::White)));
+    }
+
+    pieces
+}
+
 #[derive(Clone)]
 pub struct Board {
     pub dimensions: usize,
@@ -17,76 +49,8 @@ pub struct Board {
     pub pieces: Vec<Vec<Option<Piece>>>,
 }
 
-fn standard_setup() -> Vec<Vec<Option<Piece>>> {
-    let specials: [&'static str; 8] = [
-        "rook", "knight", "bishop", "king", "queen", "bishop", "knight", "rook",
-    ];
-
-    let mut pieces: Vec<Vec<Option<Piece>>> = (0..8).map(|_| vec![]).collect();
-
-    for (index, kind) in specials.iter().enumerate() {
-        pieces[0].push(Some(Piece::new(
-            kind.to_string(),
-            PieceColor::Black,
-            Position::new(0, index),
-        )));
-    }
-
-    if true {
-        for index in 0..8 {
-            pieces[1].push(Some(Piece::new(
-                "pawn".to_owned(),
-                PieceColor::Black,
-                Position::new(1, index),
-            )));
-        }
-
-        for board_row in pieces.iter_mut().skip(2).take(4) {
-            for _ in 0..8 {
-                board_row.push(None);
-            }
-        }
-
-        for index in 0..8 {
-            pieces[6].push(Some(Piece::new(
-                "pawn".to_owned(),
-                PieceColor::White,
-                Position::new(6, index),
-            )));
-        }
-    } else {
-        for _ in 0..8 {
-            pieces[1].push(None);
-        }
-
-        for board_row in pieces.iter_mut().skip(2).take(4) {
-            for _ in 0..8 {
-                board_row.push(None);
-            }
-        }
-
-        for _ in 0..8 {
-            pieces[6].push(None);
-        }
-    }
-
-    for (index, kind) in specials.iter().enumerate() {
-        pieces[7].push(Some(Piece::new(
-            kind.to_string(),
-            PieceColor::White,
-            Position::new(7, index),
-        )));
-    }
-
-    pieces
-}
-
 impl Board {
     pub fn standard() -> Self {
-        // let mut config = GameConfig::default();
-
-        // config.load_piece_configs("./pieces");
-
         Self {
             dimensions: 8,
             turn_count: 0,
@@ -94,8 +58,7 @@ impl Board {
                 (PieceColor::White, vec![]),
                 (PieceColor::Black, vec![]),
             ]),
-            pieces: standard_setup(),
-            // config,
+            pieces: standard_layout(),
         }
     }
 
@@ -132,39 +95,16 @@ impl Board {
         println!(
             "[{}] {} to {}",
             piece.kind,
-            piece.position.as_notation(),
+            position.as_notation(),
             the_move.destination.as_notation()
         );
 
-        // piece.history.push(piece.position);
-        piece.position = the_move.destination;
+        piece.history.push(the_move.clone());
         piece.last_moved = Some(self.turn_count);
 
         self.pieces[the_move.destination.row()][the_move.destination.column()] = Some(piece);
     }
 }
-
-// impl IntoLua for &Board {
-//     fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
-//         let rows = lua.create_table_with_capacity(self.dimensions, 0)?;
-
-//         for row_index in 0..self.dimensions {
-//             let row = lua.create_table_with_capacity(self.dimensions, 0)?;
-
-//             for column_index in 0..self.dimensions {
-//                 if let Some(piece) = &self.pieces[row_index][column_index] {
-//                     row.push(piece.into_lua(lua)?)?;
-//                 } else {
-//                     row.push(mlua::Value::Nil)?;
-//                 }
-//             }
-
-//             rows.push(row)?;
-//         }
-
-//         Ok(mlua::Value::Table(rows))
-//     }
-// }
 
 impl UserData for Board {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
@@ -174,8 +114,12 @@ impl UserData for Board {
 
         methods.add_method("get_perpendicular_moves", |_, board, position| {
             let piece = board.get_piece(position).unwrap();
-            let positions =
-                utils::available_positions_in_directions(piece, board, &utils::PERPENDICULAR);
+            let positions = utils::available_positions_in_directions(
+                position,
+                piece,
+                board,
+                &utils::PERPENDICULAR,
+            );
 
             Ok(utils::generate_moves(positions, piece, board))
         });
@@ -183,7 +127,7 @@ impl UserData for Board {
         methods.add_method("get_diagonal_moves", |_, board, position| {
             let piece = board.get_piece(position).unwrap();
             let positions =
-                utils::available_positions_in_directions(piece, board, &utils::DIAGONAL);
+                utils::available_positions_in_directions(position, piece, board, &utils::DIAGONAL);
 
             Ok(utils::generate_moves(positions, piece, board))
         });
@@ -197,7 +141,8 @@ impl UserData for Board {
                     .map(|offset| offset.as_parts())
                     .collect::<Vec<_>>();
 
-                let positions = utils::available_positions_in_directions(piece, board, &offsets);
+                let positions =
+                    utils::available_positions_in_directions(position, piece, board, &offsets);
 
                 Ok(utils::generate_moves(positions, piece, board))
             },
@@ -208,5 +153,7 @@ impl UserData for Board {
         methods.add_method("in_bounds", |_, board, position: Position| {
             Ok(position.restrict_to(board.dimensions).is_some())
         });
+
+        methods.add_method("turn_count", |_, board, ()| Ok(board.turn_count));
     }
 }

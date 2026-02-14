@@ -59,9 +59,11 @@ impl Display for Position {
 
 impl mlua::IntoLua for Position {
     fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
-        let table = lua.create_table_from([("row", self.row()), ("column", self.column())])?;
+        let object = lua.create_table_from([("row", self.row()), ("column", self.column())])?;
 
-        Ok(mlua::Value::Table(table))
+        object.set_metatable(lua.globals().get("Position")?)?;
+
+        Ok(mlua::Value::Table(object))
     }
 }
 
@@ -119,12 +121,14 @@ impl Display for Offset {
 
 impl mlua::IntoLua for Offset {
     fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
-        let table = lua.create_table_from([
+        let object = lua.create_table_from([
             ("delta_row", self.delta_row()),
             ("delta_column", self.delta_column()),
         ])?;
 
-        Ok(mlua::Value::Table(table))
+        object.set_metatable(lua.globals().get("Offset")?)?;
+
+        Ok(mlua::Value::Table(object))
     }
 }
 

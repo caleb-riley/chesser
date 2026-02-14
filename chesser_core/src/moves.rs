@@ -33,11 +33,9 @@ impl mlua::FromLua for Move {
             }
         };
 
-        // -------- destination --------
         let dest_table: mlua::Table = table.get("destination")?;
         let destination = Position::from_lua(mlua::Value::Table(dest_table), _lua)?;
 
-        // -------- kind --------
         let kind_value: mlua::Value = table.get("kind")?;
 
         let kind = match kind_value {
@@ -95,21 +93,16 @@ impl mlua::FromLua for Move {
 
 impl IntoLua for Move {
     fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
-        // Create a Lua table for the Move
         let table = lua.create_table()?;
 
-        // destination
         table.set("destination", self.destination.into_lua(lua)?)?;
 
-        // kind
         match self.kind {
             MoveKind::Passive => {
-                // just a string for passive
                 let s: mlua::String = lua.create_string("passive")?;
                 table.set("kind", s)?;
             }
             MoveKind::Capture(captured_positions) => {
-                // table with type = "capture" and captured = [...]
                 let kind_table = lua.create_table()?;
                 kind_table.set("type", "capture")?;
 

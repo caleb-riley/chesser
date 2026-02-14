@@ -21,6 +21,7 @@ pub const STAGGERED: [(isize, isize); 8] = [
 ];
 
 pub fn available_positions_in_directions(
+    position: Position,
     piece: &Piece,
     board: &Board,
     directions: &[(isize, isize)],
@@ -30,8 +31,7 @@ pub fn available_positions_in_directions(
     for (delta_row, delta_column) in directions {
         let mut scale = 1;
 
-        while let Some(target_position) = piece
-            .position
+        while let Some(target_position) = position
             .offset_by(Offset::new(*delta_row, *delta_column).scale_by(scale))
             .restrict_to(board.dimensions)
         {

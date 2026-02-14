@@ -364,7 +364,7 @@ fn handle_ui_events(
                         "{} {{ color: {}, position: {} }}",
                         piece.kind,
                         piece.color,
-                        piece.position.as_notation()
+                        position.as_notation()
                     );
                 }
             }

@@ -1,7 +1,7 @@
 use crate::{
     board::Board,
     moves::{Move, MoveKind},
-    position::{Offset, Position},
+    position::Position,
 };
 
 use std::collections::HashMap;
@@ -38,9 +38,10 @@ impl PieceConfig {
         position: Position,
     ) -> Vec<Move> {
         let board_userdata = lua.create_userdata(board.clone()).unwrap();
+        let piece = board.get_piece(position).unwrap();
 
         self.available_moves
-            .call((board_userdata, position))
+            .call((board_userdata, piece, position))
             .unwrap()
     }
 }
@@ -81,37 +82,11 @@ impl Game {
     }
 
     pub fn register_helpers(&self) -> mlua::Result<()> {
-        // let cloned_self = Arc::clone(&self); // clone Arc, no lifetime issues
+        let builtins = std::fs::read_to_string("./lua/builtins.lua")?;
 
-        // let get_perpendicular_moves =
-        //     self.lua.create_function(move |lua, position: Position| {
-        //         let piece = self.board.get_piece(position).unwrap();
-        //         let positions = utils::available_positions_in_directions(
-        //             piece,
-        //             &self.board,
-        //             &utils::PERPENDICULAR,
-        //         );
-        //         let moves = utils::generate_moves(positions, piece, &self.board);
-
-        //         Ok(vec_into_lua(lua, moves.into_iter().collect()))
-        //     })?;
+        self.lua.load(&builtins).exec()?;
 
         let utils = self.lua.create_table()?;
-        // utils.set("perpendicular_moves", get_perpendicular_moves)?;
-
-        // local function make_passive_move(destination)
-        //     return { destination = destination, kind = "passive" }
-        // end
-
-        let make_position = self
-            .lua
-            .create_function(move |_, (row, column)| Ok(Position::new(row, column)))?;
-
-        let make_offset = self
-            .lua
-            .create_function(move |_, (delta_row, delta_column)| {
-                Ok(Offset::new(delta_row, delta_column))
-            })?;
 
         let make_passive_move = self
             .lua
@@ -136,9 +111,6 @@ impl Game {
 
                     Ok(new_table)
                 })?;
-
-        utils.set("make_position", make_position)?;
-        utils.set("make_offset", make_offset)?;
 
         utils.set("make_passive_move", make_passive_move)?;
         utils.set("make_capture_move", make_capture_move)?;
