@@ -17,12 +17,6 @@ impl Move {
             actions,
         }
     }
-
-    pub fn contains_deletion(&self) -> bool {
-        self.actions
-            .iter()
-            .any(|a| matches!(a, Action::Deletion { .. }))
-    }
 }
 
 impl mlua::FromLua for Move {

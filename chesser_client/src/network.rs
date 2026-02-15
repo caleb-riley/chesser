@@ -1,50 +1,204 @@
 use bevy::prelude::*;
+use chesser_api::{BoardDto, MoveDto, PieceConfigDto, PositionDto};
 use futures_util::{SinkExt, StreamExt};
-use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use tokio_tungstenite::connect_async;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio_tungstenite::tungstenite::Message;
+
+use crate::Interface;
+
+#[derive(Serialize, Deserialize)]
+pub enum NetworkMessage {
+    BoardLoaded(BoardDto),
+    PieceConfigsLoaded(HashMap<String, PieceConfigDto>),
+    SocketMessage(String),
+    HintsReceived(Vec<MoveDto>),
+    MovePerformed,
+    ExperiencedError(String),
+}
+
+#[derive(Serialize)]
+pub enum NetworkCommand {
+    SendMove(MoveDto),
+    RequestHints(PositionDto),
+}
+
+impl From<NetworkMessage> for Message {
+    fn from(msg: NetworkMessage) -> Self {
+        let text = serde_json::to_string(&msg).unwrap();
+        Message::Text(text.into())
+    }
+}
+
+impl TryFrom<Message> for NetworkMessage {
+    type Error = serde_json::Error;
+
+    fn try_from(msg: Message) -> Result<Self, Self::Error> {
+        match msg {
+            Message::Text(text) => serde_json::from_str(&text),
+            _ => serde_json::from_str("null"),
+        }
+    }
+}
 
 #[derive(Resource)]
 pub struct NetworkClient {
-    pub _sender: mpsc::Sender<String>,
-    pub receiver: Arc<Mutex<mpsc::Receiver<String>>>,
+    pub incoming_rx: UnboundedReceiver<NetworkMessage>,
+    pub outgoing_tx: UnboundedSender<NetworkCommand>,
 }
 
-pub fn start_network(mut commands: Commands) {
-    let (to_ws_tx, to_ws_rx) = mpsc::channel::<String>();
-    let (from_ws_tx, from_ws_rx) = mpsc::channel::<String>();
+async fn fetch_board() -> Result<BoardDto, reqwest::Error> {
+    let client = reqwest::Client::new();
 
-    thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
+    let response = client
+        .get("http://127.0.0.1:3000/game/board")
+        .send()
+        .await?;
 
-        rt.block_on(async move {
-            let (ws_stream, _) = connect_async("ws://127.0.0.1:3000/connect")
-                .await
-                .expect("Failed to connect");
+    let response = response.error_for_status()?;
 
-            let (mut write, mut read) = ws_stream.split();
+    let board = response.json::<BoardDto>().await?;
 
-            let writer = tokio::spawn(async move {
-                while let Ok(msg) = to_ws_rx.recv() {
-                    write.send(msg.into()).await.ok();
-                }
-            });
+    Ok(board)
+}
 
-            let reader = tokio::spawn(async move {
-                while let Some(Ok(msg)) = read.next().await {
-                    if let Ok(text) = msg.to_text() {
-                        from_ws_tx.send(text.to_string()).ok();
+async fn fetch_piece_configs() -> Result<HashMap<String, PieceConfigDto>, reqwest::Error> {
+    let client = reqwest::Client::new();
+
+    let piece_configs = client
+        .get("http://127.0.0.1:3000/game/piece-configs")
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<HashMap<_, _>>()
+        .await?;
+
+    println!("{}", piece_configs.len());
+
+    Ok(piece_configs)
+}
+
+pub fn handle_network_messages(mut interface: ResMut<Interface>, mut net: ResMut<NetworkClient>) {
+    while let Ok(msg) = net.incoming_rx.try_recv() {
+        match msg {
+            NetworkMessage::BoardLoaded(dto) => {
+                interface.board = Some(dto);
+                println!("Board loaded");
+            }
+            NetworkMessage::PieceConfigsLoaded(dto) => {
+                interface.pieces = dto;
+                println!("Piece configs loaded");
+            }
+            NetworkMessage::SocketMessage(message) => {
+                println!("Socket said: {message}");
+            }
+            NetworkMessage::HintsReceived(moves) => {
+                interface.hints = moves.into_iter().map(|m| (m.destination, m)).collect();
+            }
+            NetworkMessage::MovePerformed => {
+                println!("someone performed a move");
+            }
+            NetworkMessage::ExperiencedError(err) => {
+                eprintln!("Uh oh: {err}");
+            }
+        }
+    }
+}
+
+pub async fn network_task(
+    incoming_tx: UnboundedSender<NetworkMessage>,
+    mut outgoing_rx: UnboundedReceiver<NetworkCommand>,
+) {
+    if let Ok(board) = fetch_board().await {
+        incoming_tx.send(NetworkMessage::BoardLoaded(board)).ok();
+    } else {
+        eprintln!("Failed to fetch board over HTTP");
+    }
+
+    if let Ok(configs) = fetch_piece_configs().await {
+        incoming_tx
+            .send(NetworkMessage::PieceConfigsLoaded(configs))
+            .ok();
+    } else {
+        eprintln!("Failed to fetch piece configs over HTTP");
+    }
+
+    let (ws_stream, _) = tokio_tungstenite::connect_async("ws://127.0.0.1:3000/ws")
+        .await
+        .expect("Failed to connect to websocket");
+
+    let (mut ws_write, mut ws_read) = ws_stream.split();
+
+    loop {
+        tokio::select! {
+            Some(cmd) = outgoing_rx.recv() => {
+                match cmd {
+                    NetworkCommand::RequestHints(pos) => {
+                        let text = serde_json::to_string(&NetworkCommand::RequestHints(pos)).unwrap();
+
+                        ws_write.send(Message::Text(text.into())).await.ok();
+                    }
+                    NetworkCommand::SendMove(mv) => {
+                        let text = serde_json::to_string(&NetworkCommand::SendMove(mv)).unwrap();
+
+                        ws_write.send(Message::Text(text.into())).await.ok();
                     }
                 }
-            });
+            }
 
-            tokio::join!(writer, reader);
-        });
-    });
+            Some(msg) = ws_read.next() => {
+                match msg {
+                    Ok(msg) => {
+                        if let Ok(text) = msg.to_text() {
+                            match serde_json::from_str::<NetworkMessage>(text) {
+                                Ok(network_msg) => {
+                                    incoming_tx.send(network_msg).ok();
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to deserialize NetworkMessage: {}", e);
+
+                                    incoming_tx
+                                        .send(NetworkMessage::SocketMessage(text.to_string()))
+                                        .ok();
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("WebSocket read error: {}", e);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn start_networking(mut commands: Commands, runtime: Res<TokioRuntime>) {
+    let (incoming_tx, incoming_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (outgoing_tx, outgoing_rx) = tokio::sync::mpsc::unbounded_channel();
 
     commands.insert_resource(NetworkClient {
-        _sender: to_ws_tx,
-        receiver: Arc::new(Mutex::new(from_ws_rx)),
+        incoming_rx,
+        outgoing_tx: outgoing_tx.clone(),
     });
+
+    runtime.0.spawn(async move {
+        network_task(incoming_tx, outgoing_rx).await;
+    });
+}
+
+#[derive(Resource)]
+pub struct TokioRuntime(pub tokio::runtime::Runtime);
+
+impl Default for TokioRuntime {
+    fn default() -> Self {
+        Self(
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap(),
+        )
+    }
 }

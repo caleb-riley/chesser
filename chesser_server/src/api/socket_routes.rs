@@ -12,7 +12,9 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
+use chesser_api::{BoardDto, MoveDto, PieceConfigDto, PositionDto};
 use futures::{SinkExt, StreamExt};
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{self, UnboundedSender};
 use uuid::Uuid;
 
@@ -27,7 +29,7 @@ pub fn broadcast(clients: &Clients, message: &str) {
     }
 }
 
-pub fn broadcast_filter(
+pub fn _broadcast_filter(
     clients: &Clients,
     filter: impl Fn(&String, &Client) -> bool,
     message: &str,
@@ -39,38 +41,121 @@ pub fn broadcast_filter(
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub enum NetworkCommand {
+    SendMove(MoveDto),
+    RequestHints(PositionDto),
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum NetworkMessage {
+    BoardLoaded(BoardDto),
+    PieceConfigsLoaded(HashMap<String, PieceConfigDto>),
+    SocketMessage(String),
+    HintsReceived(Vec<MoveDto>),
+    MovePerformed,
+    ExperiencedError(String),
+}
+
 async fn ws_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> impl IntoResponse {
     let user_id = Uuid::new_v4().to_string();
 
-    ws.on_upgrade(move |socket| handle_socket(socket, user_id, state.clients))
+    ws.on_upgrade(move |socket| handle_socket(state, socket, user_id))
 }
 
-async fn handle_socket(socket: WebSocket, user_id: String, clients: Clients) {
+async fn handle_socket(state: AppState, socket: WebSocket, user_id: String) {
     let (tx, mut rx) = mpsc::unbounded_channel();
-    clients.lock().unwrap().insert(user_id.clone(), tx);
+    state.clients.lock().unwrap().insert(user_id.clone(), tx);
 
-    let (mut sender, mut receiver) = socket.split();
+    let (sender, mut receiver) = socket.split();
 
-    let send_task = tokio::spawn(async move {
-        while let Some(msg) = rx.recv().await {
-            if sender.send(msg).await.is_err() {
-                break;
+    let sender = Arc::new(tokio::sync::Mutex::new(sender));
+
+    let send_task = {
+        let sender = sender.clone();
+
+        tokio::spawn(async move {
+            while let Some(msg) = rx.recv().await {
+                let mut sender = sender.lock().await;
+
+                if sender
+                    .send(axum::extract::ws::Message::Text(
+                        msg.to_text().unwrap().to_string().into(),
+                    ))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
             }
-        }
-    });
+        })
+    };
 
-    let recv_task = tokio::spawn(async move {
-        while let Some(Ok(_)) = receiver.next().await {
-            // TODO: handle pings
-        }
-    });
+    let clients = Arc::clone(&state.clients);
+
+    let recv_task = {
+        let sender = sender.clone();
+        tokio::spawn(async move {
+            while let Some(Ok(msg)) = receiver.next().await {
+                if let axum::extract::ws::Message::Text(text) = msg {
+                    match serde_json::from_str::<NetworkCommand>(&text) {
+                        Ok(NetworkCommand::SendMove(mv)) => {
+                            let mut game = state.game.lock().await;
+                            game.board.perform_move(&mv.into());
+
+                            broadcast(
+                                &clients,
+                                serde_json::to_string(&NetworkMessage::BoardLoaded(
+                                    (&game.board).into(),
+                                ))
+                                .unwrap()
+                                .as_str(),
+                            );
+                        }
+                        Ok(NetworkCommand::RequestHints(pos)) => {
+                            let game = state.game.lock().await;
+
+                            let piece = game.board.get_piece(pos.into()).unwrap();
+                            let hints = game.get_available_moves(&piece.kind, pos.into());
+                            let hints_dto = hints.iter().map(|h| MoveDto::from(h)).collect();
+
+                            let mut sender = sender.lock().await;
+
+                            let _ = sender
+                                .send(axum::extract::ws::Message::Text(
+                                    serde_json::to_string(&NetworkMessage::HintsReceived(
+                                        hints_dto,
+                                    ))
+                                    .unwrap()
+                                    .into(),
+                                ))
+                                .await;
+                        }
+                        Err(e) => {
+                            let mut sender = sender.lock().await;
+
+                            let _ = sender
+                                .send(axum::extract::ws::Message::Text(
+                                    serde_json::to_string(&NetworkMessage::ExperiencedError(
+                                        format!("{}", e),
+                                    ))
+                                    .unwrap()
+                                    .into(),
+                                ))
+                                .await;
+                        }
+                    }
+                }
+            }
+        })
+    };
 
     tokio::select! {
         _ = send_task => {},
         _ = recv_task => {},
     }
 
-    clients.lock().unwrap().remove(&user_id);
+    state.clients.lock().unwrap().remove(&user_id);
 }
 
 pub fn router() -> Router<AppState> {

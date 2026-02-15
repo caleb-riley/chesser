@@ -3,5 +3,6 @@ members = [
     "chesser_core",
     "chesser_server",
     "chesser_client",
+    "chesser_api",
 ]
 resolver = "2"

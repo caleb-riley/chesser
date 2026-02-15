@@ -2039,11 +2039,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
+name = "chesser_api"
+version = "0.1.0"
+dependencies = [
+ "chesser_core",
+ "serde",
+]
+
+[[package]]
 name = "chesser_client"
 version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_egui",
+ "chesser_api",
  "chesser_core",
  "futures-util",
  "image",
@@ -2067,6 +2076,7 @@ name = "chesser_server"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "chesser_api",
  "chesser_core",
  "futures",
  "serde",

@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display};
 
 use mlua::IntoLua;
 
-use crate::moves::Move;
+use crate::{board::Board, moves::Move, position::Position};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum PieceColor {
@@ -98,5 +98,45 @@ impl IntoLua for &Piece {
         piece.set("last_moved", self.last_moved)?;
 
         Ok(mlua::Value::Table(piece))
+    }
+}
+
+pub struct PieceConfig {
+    value: i32,
+    available_moves: mlua::Function,
+}
+
+impl PieceConfig {
+    pub fn from_script(lua: &mlua::Lua, id: &str) -> Self {
+        let script_path = format!("./lua/pieces/{}.lua", id);
+        let script = std::fs::read_to_string(script_path).unwrap();
+
+        let piece_data: mlua::Table = lua.load(script).eval().unwrap();
+
+        let value: mlua::Integer = piece_data.get("value").unwrap();
+        let available_moves: mlua::Function = piece_data.get("available_moves").unwrap();
+
+        Self {
+            value: value as i32,
+            available_moves,
+        }
+    }
+
+    pub fn get_value(&self) -> i32 {
+        self.value
+    }
+
+    pub fn get_available_moves<'a>(
+        &self,
+        lua: &'a mlua::Lua,
+        board: &'a Board,
+        position: Position,
+    ) -> Vec<Move> {
+        let board_userdata = lua.create_userdata(board.clone()).unwrap();
+        let piece = board.get_piece(position).unwrap();
+
+        self.available_moves
+            .call((board_userdata, piece, position))
+            .unwrap()
     }
 }
