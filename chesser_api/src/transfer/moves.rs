@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use chesser_core::moves::Move;
 
-use crate::{ActionDto, position::PositionDto};
+use crate::transfer::{ActionDto, PositionDto};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct MoveDto {

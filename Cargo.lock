@@ -2044,6 +2044,8 @@ version = "0.1.0"
 dependencies = [
  "chesser_core",
  "serde",
+ "serde_json",
+ "tokio-tungstenite",
 ]
 
 [[package]]

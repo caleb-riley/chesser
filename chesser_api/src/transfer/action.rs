@@ -1,7 +1,7 @@
 use chesser_core::{action::Action, piece::PieceColor};
 use serde::{Deserialize, Serialize};
 
-use crate::PositionDto;
+use crate::transfer::PositionDto;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum ActionDto {
@@ -61,7 +61,7 @@ impl From<ActionDto> for Action {
                 color,
             } => Self::Spawn {
                 position: position.into(),
-                id: id.into(),
+                id,
                 color: match color.as_str() {
                     "white" => PieceColor::White,
                     _ => PieceColor::Black,

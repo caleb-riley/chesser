@@ -3,12 +3,13 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy_egui::egui;
 
-use chesser_api::{ActionDto, BoardDto, MoveDto, PieceConfigDto, PieceDto, PositionDto};
+use chesser_api::{
+    network::NetworkCommand,
+    transfer::{ActionDto, BoardDto, MoveDto, PieceConfigDto, PieceDto, PositionDto},
+};
 use chesser_core::piece::PieceColor;
 
-use crate::network::{
-    NetworkClient, NetworkCommand, TokioRuntime, handle_network_messages, start_networking,
-};
+use crate::network::{NetworkClient, TokioRuntime, handle_network_messages, start_networking};
 
 mod network;
 
@@ -71,7 +72,7 @@ fn darken(color: egui::Color32, factor: f32) -> egui::Color32 {
 const LIGHT_SQUARE: egui::Color32 = egui::Color32::from_rgb(235, 236, 208);
 const DARK_SQUARE: egui::Color32 = egui::Color32::from_rgb(115, 149, 82);
 
-const CELL_SIZE: f32 = 75.0;
+const CELL_SIZE: f32 = 80.0;
 const STROKE_WIDTH: f32 = 5.0;
 
 #[derive(Resource, Default)]
@@ -84,26 +85,14 @@ fn setup_textures_system(
     mut contexts: bevy_egui::EguiContexts,
     asset_server: Res<AssetServer>,
 ) {
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, "pawn");
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, "knight");
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, "bishop");
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, "rook");
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, "king");
-    register_piece_texture(&mut textures, &mut contexts, &asset_server, "queen");
-}
+    for piece_file in std::fs::read_dir("./chesser_client/assets/pieces").unwrap() {
+        let name = piece_file.unwrap().file_name().into_string().unwrap();
+        let id = name.split('.').next().unwrap();
 
-fn register_piece_texture(
-    textures: &mut ResMut<PieceTextureIds>,
-    contexts: &mut bevy_egui::EguiContexts,
-    asset_server: &Res<AssetServer>,
-    kind: &str,
-) {
-    for color in ["white", "black"] {
-        let name = format!("{}_{}", color, kind);
-        let handle: Handle<Image> = asset_server.load(format!("pieces/{name}.png"));
-        let id = contexts.add_image(bevy_egui::EguiTextureHandle::Strong(handle));
+        let handle: Handle<Image> = asset_server.load(format!("pieces/{id}.png"));
+        let texture_id = contexts.add_image(bevy_egui::EguiTextureHandle::Strong(handle));
 
-        textures.map.insert(name, id);
+        textures.map.insert(id.to_owned(), texture_id);
     }
 }
 
@@ -322,7 +311,7 @@ fn ui_system(
                 for (column, (rect, response)) in cell_row.iter().enumerate() {
                     let position = PositionDto { row, column };
 
-                    paint_cell_piece(ui, *rect, response, position, &board_dto, &textures);
+                    paint_cell_piece(ui, *rect, response, position, board_dto, &textures);
                     paint_cell_strokes(ui, *rect, position, &interface, &cells);
 
                     if response.clicked() {

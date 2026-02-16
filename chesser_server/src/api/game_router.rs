@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use axum::{Json, Router, extract::State, response::IntoResponse, routing::get};
-use chesser_api::{BoardDto, PieceConfigDto};
+use chesser_api::transfer::{BoardDto, PieceConfigDto};
 
 use crate::AppState;
 

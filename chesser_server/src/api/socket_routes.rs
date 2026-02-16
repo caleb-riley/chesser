@@ -12,9 +12,11 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
-use chesser_api::{BoardDto, MoveDto, PieceConfigDto, PositionDto};
+use chesser_api::{
+    network::{NetworkCommand, NetworkMessage},
+    transfer::MoveDto,
+};
 use futures::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{self, UnboundedSender};
 use uuid::Uuid;
 
@@ -39,22 +41,6 @@ pub fn _broadcast_filter(
             let _ = client.send(Message::Text(message.to_string().into()));
         }
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub enum NetworkCommand {
-    SendMove(MoveDto),
-    RequestHints(PositionDto),
-}
-
-#[derive(Serialize, Deserialize)]
-pub enum NetworkMessage {
-    BoardLoaded(BoardDto),
-    PieceConfigsLoaded(HashMap<String, PieceConfigDto>),
-    SocketMessage(String),
-    HintsReceived(Vec<MoveDto>),
-    MovePerformed,
-    ExperiencedError(String),
 }
 
 async fn ws_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> impl IntoResponse {
@@ -117,7 +103,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, user_id: String) {
 
                             let piece = game.board.get_piece(pos.into()).unwrap();
                             let hints = game.get_available_moves(&piece.kind, pos.into());
-                            let hints_dto = hints.iter().map(|h| MoveDto::from(h)).collect();
+                            let hints_dto = hints.iter().map(MoveDto::from).collect();
 
                             let mut sender = sender.lock().await;
 

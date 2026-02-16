@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use chesser_core::{board::Board, piece::PieceColor};
 
-use crate::{PieceDto, PositionDto};
+use crate::transfer::{PieceDto, PositionDto};
 
 #[derive(Serialize, Deserialize)]
 pub struct BoardDto {

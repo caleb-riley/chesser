@@ -30,6 +30,9 @@ fn standard_layout() -> Vec<Vec<Option<Piece>>> {
         }
     }
 
+    pieces[2][3] = Some(Piece::new("pres".to_owned(), PieceColor::Black));
+    pieces[5][4] = Some(Piece::new("pres".to_owned(), PieceColor::White));
+
     for _ in 0..8 {
         pieces[6].push(Some(Piece::new("pawn".to_owned(), PieceColor::White)));
     }
@@ -110,7 +113,7 @@ impl Board {
                     }
 
                     self.pieces[position.row()][position.column()] =
-                        Some(Piece::new(id.clone(), color.clone()));
+                        Some(Piece::new(id.clone(), *color));
                 }
                 Action::Deletion { position } => {
                     self.pieces[position.row()][position.column()] = None;
