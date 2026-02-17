@@ -1,15 +1,16 @@
 use mlua::IntoLua;
 use std::{collections::HashMap, io::Write};
 
-use crate::{
+use crate::engine::{
     action::Action,
+    color::PieceColor,
     moves::Move,
-    piece::{Piece, PieceColor},
+    piece::Piece,
     position::{Offset, Position},
     utils,
 };
 
-fn standard_layout() -> Vec<Vec<Option<Piece>>> {
+fn standard_layout(lua: &mlua::Lua) -> Vec<Vec<Option<Piece>>> {
     let specials: [&'static str; 8] = [
         "rook", "knight", "bishop", "king", "queen", "bishop", "knight", "rook",
     ];
@@ -17,11 +18,11 @@ fn standard_layout() -> Vec<Vec<Option<Piece>>> {
     let mut pieces: Vec<Vec<Option<Piece>>> = (0..8).map(|_| vec![]).collect();
 
     for kind in specials.iter() {
-        pieces[0].push(Some(Piece::new(kind.to_string(), PieceColor::Black)));
+        pieces[0].push(Some(Piece::new(kind.to_string(), PieceColor::Black, lua)));
     }
 
     for _ in 0..8 {
-        pieces[1].push(Some(Piece::new("pawn".to_owned(), PieceColor::Black)));
+        pieces[1].push(Some(Piece::new("pawn".to_owned(), PieceColor::Black, lua)));
     }
 
     for board_row in pieces.iter_mut().skip(2).take(4) {
@@ -30,15 +31,15 @@ fn standard_layout() -> Vec<Vec<Option<Piece>>> {
         }
     }
 
-    pieces[2][3] = Some(Piece::new("pres".to_owned(), PieceColor::Black));
-    pieces[5][4] = Some(Piece::new("pres".to_owned(), PieceColor::White));
+    pieces[2][3] = Some(Piece::new("pres".to_owned(), PieceColor::Black, lua));
+    pieces[5][4] = Some(Piece::new("pres".to_owned(), PieceColor::White, lua));
 
     for _ in 0..8 {
-        pieces[6].push(Some(Piece::new("pawn".to_owned(), PieceColor::White)));
+        pieces[6].push(Some(Piece::new("pawn".to_owned(), PieceColor::White, lua)));
     }
 
     for kind in specials.iter() {
-        pieces[7].push(Some(Piece::new(kind.to_string(), PieceColor::White)));
+        pieces[7].push(Some(Piece::new(kind.to_string(), PieceColor::White, lua)));
     }
 
     pieces
@@ -53,7 +54,7 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn standard() -> Self {
+    pub fn standard(lua: &mlua::Lua) -> Self {
         Self {
             dimensions: 8,
             turn_count: 0,
@@ -61,7 +62,7 @@ impl Board {
                 (PieceColor::White, vec![]),
                 (PieceColor::Black, vec![]),
             ]),
-            pieces: standard_layout(),
+            pieces: standard_layout(lua),
         }
     }
 
@@ -75,7 +76,7 @@ impl Board {
         }
     }
 
-    pub fn perform_move(&mut self, the_move: &Move) {
+    pub fn perform_move(&mut self, the_move: &Move, lua: &mlua::Lua) {
         self.turn_count += 1;
 
         for action in &the_move.actions {
@@ -113,7 +114,7 @@ impl Board {
                     }
 
                     self.pieces[position.row()][position.column()] =
-                        Some(Piece::new(id.clone(), *color));
+                        Some(Piece::new(id.clone(), *color, lua));
                 }
                 Action::Deletion { position } => {
                     self.pieces[position.row()][position.column()] = None;

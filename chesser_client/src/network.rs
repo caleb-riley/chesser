@@ -42,8 +42,6 @@ async fn fetch_piece_configs() -> Result<HashMap<String, PieceConfigDto>, reqwes
         .json::<HashMap<_, _>>()
         .await?;
 
-    println!("{}", piece_configs.len());
-
     Ok(piece_configs)
 }
 
@@ -65,7 +63,7 @@ pub fn handle_network_messages(mut interface: ResMut<Interface>, mut net: ResMut
                 interface.hints = moves.into_iter().map(|m| (m.destination, m)).collect();
             }
             NetworkMessage::MovePerformed => {
-                println!("someone performed a move");
+                println!("Someone performed a move");
             }
             NetworkMessage::ExperiencedError(err) => {
                 eprintln!("Uh oh: {err}");

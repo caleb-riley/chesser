@@ -1,4 +1,4 @@
-use chesser_core::piece::{Piece, PieceConfig};
+use chesser_core::{engine::piece::Piece, loader::PieceConfig};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -10,7 +10,7 @@ pub struct PieceDto {
 impl From<&Piece> for PieceDto {
     fn from(piece: &Piece) -> Self {
         Self {
-            kind: piece.kind.to_string(),
+            kind: piece.piece_id.to_string(),
             color: piece.color.to_string(),
         }
     }

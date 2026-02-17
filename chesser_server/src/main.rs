@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, sync::Arc};
 
 use axum::http::{Method, header::CONTENT_TYPE};
-use chesser_core::game::Game;
+use chesser_core::engine::game::Game;
 use sqlx::SqlitePool;
 use tokio::{net::TcpListener, sync::Mutex};
 use tower_http::{
@@ -53,12 +53,7 @@ impl HttpServer {
         let router = app_router()
             .with_state(AppState {
                 _pool: Arc::new(pool),
-                game: Arc::new(Mutex::new({
-                    let mut game = Game::default();
-                    game.register_helpers().unwrap();
-                    game.load_piece_configs("./lua/pieces");
-                    game
-                })),
+                game: Arc::new(Mutex::new(Game::default())),
                 clients,
             })
             .layer(NormalizePathLayer::trim_trailing_slash())

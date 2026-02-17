@@ -1,4 +1,4 @@
-use crate::{piece::PieceColor, position::Position};
+use crate::engine::{color::PieceColor, position::Position};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Action {

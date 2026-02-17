@@ -5,9 +5,9 @@
 ---@class Piece
 ---@field kind string
 ---@field color PieceColor
----@field position Position
 ---@field history Move[]
 ---@field last_moved integer | nil
+---@field metadata table
 
 ---@class RelocationAction
 ---@field kind "relocation"
@@ -30,6 +30,7 @@
 ---@field origin Position
 ---@field destination Position
 ---@field actions Action[]
+---@field promotions string[]
 
 ---@class Board
 ---@field get_piece fun(self: Board, position: Position): Piece | nil
@@ -38,6 +39,8 @@
 ---@field get_directional_moves fun(self: Board, position: Position, offsets: Offset[]): Move[]
 ---@field get_dimensions fun(self: Board): integer
 ---@field turn_count fun(self: Board): integer
+
+---@alias TerminationState PieceColor | "draw" | nil
 
 ---@type table
 _G.utils = {}
@@ -74,6 +77,7 @@ function utils.make_passive_move(origin, destination)
         actions = {
             { kind = "relocation", origin = origin, destination = destination },
         },
+        promotions = {},
     }
 end
 
@@ -87,19 +91,20 @@ function utils.make_capture_move(origin, destination, captures)
     for _, capture in ipairs(captures) do
         table.insert(actions, {
             kind = "deletion",
-            position = capture
+            position = capture,
         })
     end
 
     table.insert(actions, {
         kind = "relocation",
         origin = origin,
-        destination = destination
+        destination = destination,
     })
 
     return {
         origin = origin,
         destination = destination,
         actions = actions,
+        promotions = {},
     }
 end

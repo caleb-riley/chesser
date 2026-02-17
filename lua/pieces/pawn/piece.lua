@@ -57,16 +57,7 @@ return {
 
         for _, move in ipairs(moves) do
             if move.destination.row == 0 or move.destination.row == board:get_dimensions() - 1 then
-                print("promotion")
-
-                ---@type DeletionAction
-                local deletion = { kind = "deletion", position = move.destination }
-                table.insert(move.actions, deletion)
-
-                ---@type SpawnAction
-                local promotion = { kind = "spawn", position = move.destination, id = "PROMOTION", color = piece.color }
-
-                table.insert(move.actions, promotion)
+                move.promotions = { "queen", "rook", "bishop", "knight" }
             end
         end
 

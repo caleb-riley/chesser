@@ -87,7 +87,8 @@ async fn handle_socket(state: AppState, socket: WebSocket, user_id: String) {
                     match serde_json::from_str::<NetworkCommand>(&text) {
                         Ok(NetworkCommand::SendMove(mv)) => {
                             let mut game = state.game.lock().await;
-                            game.board.perform_move(&mv.into());
+                            let lua = game.lua.clone();
+                            game.board.perform_move(&mv.into(), &lua);
 
                             broadcast(
                                 &clients,
@@ -97,12 +98,19 @@ async fn handle_socket(state: AppState, socket: WebSocket, user_id: String) {
                                 .unwrap()
                                 .as_str(),
                             );
+
+                            let termination_state =
+                                game.get_config().check_termination(&game.board, &lua);
+
+                            println!("Termination state: {termination_state:?}");
                         }
                         Ok(NetworkCommand::RequestHints(pos)) => {
                             let game = state.game.lock().await;
 
                             let piece = game.board.get_piece(pos.into()).unwrap();
-                            let hints = game.get_available_moves(&piece.kind, pos.into());
+                            let hints = game
+                                .get_available_moves(&piece.piece_id, pos.into())
+                                .unwrap();
                             let hints_dto = hints.iter().map(MoveDto::from).collect();
 
                             let mut sender = sender.lock().await;

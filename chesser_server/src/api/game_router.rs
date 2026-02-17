@@ -14,13 +14,13 @@ async fn get_board(State(state): State<AppState>) -> impl IntoResponse {
 async fn get_piece_configs(State(state): State<AppState>) -> impl IntoResponse {
     let game = state.game.lock().await;
 
-    let mut configs = HashMap::new();
+    let mut piece_configs = HashMap::new();
 
-    for (id, config) in game.pieces.iter() {
-        configs.insert(id.to_owned(), PieceConfigDto::from(config));
+    for (piece_id, piece_config) in game.get_piece_configs() {
+        piece_configs.insert(piece_id.to_owned(), PieceConfigDto::from(piece_config));
     }
 
-    Json(configs)
+    Json(piece_configs)
 }
 
 pub fn game_router() -> Router<AppState> {

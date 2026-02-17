@@ -7,4 +7,3 @@ edition = "2024"
 chesser_core = { path = "../chesser_core" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
-tokio-tungstenite = "0.28.0"

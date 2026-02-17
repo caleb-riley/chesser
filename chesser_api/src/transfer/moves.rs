@@ -1,6 +1,5 @@
+use chesser_core::engine::moves::Move;
 use serde::{Deserialize, Serialize};
-
-use chesser_core::moves::Move;
 
 use crate::transfer::{ActionDto, PositionDto};
 
@@ -9,6 +8,7 @@ pub struct MoveDto {
     pub origin: PositionDto,
     pub destination: PositionDto,
     pub actions: Vec<ActionDto>,
+    pub promotions: Vec<String>,
 }
 
 impl MoveDto {
@@ -31,6 +31,7 @@ impl From<&Move> for MoveDto {
             origin: (&the_move.origin).into(),
             destination: (&the_move.destination).into(),
             actions,
+            promotions: the_move.promotions.clone(),
         }
     }
 }
@@ -43,6 +44,11 @@ impl From<MoveDto> for Move {
             actions.push(action.into());
         }
 
-        Self::new(mv.origin.into(), mv.destination.into(), actions)
+        Self::new(
+            mv.origin.into(),
+            mv.destination.into(),
+            actions,
+            mv.promotions,
+        )
     }
 }

@@ -1,13 +1,17 @@
 use std::collections::HashMap;
 
-use bevy::prelude::*;
+use bevy::{
+    asset::RenderAssetUsages,
+    image::{CompressedImageFormats, ImageSampler, ImageType},
+    prelude::*,
+};
 use bevy_egui::egui;
 
 use chesser_api::{
     network::NetworkCommand,
     transfer::{ActionDto, BoardDto, MoveDto, PieceConfigDto, PieceDto, PositionDto},
 };
-use chesser_core::piece::PieceColor;
+use chesser_core::engine::color::PieceColor;
 
 use crate::network::{NetworkClient, TokioRuntime, handle_network_messages, start_networking};
 
@@ -83,16 +87,50 @@ struct PieceTextureIds {
 fn setup_textures_system(
     mut textures: ResMut<PieceTextureIds>,
     mut contexts: bevy_egui::EguiContexts,
-    asset_server: Res<AssetServer>,
+    mut images: ResMut<Assets<Image>>,
 ) {
-    for piece_file in std::fs::read_dir("./chesser_client/assets/pieces").unwrap() {
-        let name = piece_file.unwrap().file_name().into_string().unwrap();
-        let id = name.split('.').next().unwrap();
+    const PIECES_ROOT: &str = "./lua/pieces";
 
-        let handle: Handle<Image> = asset_server.load(format!("pieces/{id}.png"));
-        let texture_id = contexts.add_image(bevy_egui::EguiTextureHandle::Strong(handle));
+    for piece_dir in std::fs::read_dir(PIECES_ROOT).unwrap() {
+        let piece_dir = piece_dir.unwrap();
+        let piece_path = piece_dir.path();
 
-        textures.map.insert(id.to_owned(), texture_id);
+        if !piece_path.is_dir() {
+            continue;
+        }
+
+        let piece_name = piece_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap()
+            .to_string();
+
+        for color in ["white", "black"] {
+            let file_path = piece_path.join(format!("assets/{color}_icon.png"));
+
+            if !file_path.exists() {
+                continue;
+            }
+
+            let bytes = std::fs::read(&file_path).expect("Failed to read image");
+
+            let image = Image::from_buffer(
+                &bytes,
+                ImageType::Extension("png"),
+                CompressedImageFormats::NONE,
+                true,
+                ImageSampler::default(),
+                RenderAssetUsages::default(),
+            )
+            .expect("Failed to decode PNG");
+
+            let handle = images.add(image);
+
+            let texture_id = contexts.add_image(bevy_egui::EguiTextureHandle::Strong(handle));
+
+            let piece_with_color = format!("{color}_{piece_name}");
+            textures.map.insert(piece_with_color, texture_id);
+        }
     }
 }
 

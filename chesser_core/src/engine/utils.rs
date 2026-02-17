@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{
+use crate::engine::{
     action::Action,
     board::Board,
     moves::Move,
@@ -74,6 +74,7 @@ pub fn generate_moves(
                             destination: position,
                         },
                     ],
+                    vec![],
                 ));
             }
         } else {
@@ -84,6 +85,7 @@ pub fn generate_moves(
                     origin,
                     destination: position,
                 }],
+                vec![],
             ));
         }
     }

@@ -1,4 +1,4 @@
-use chesser_core::{action::Action, piece::PieceColor};
+use chesser_core::engine::{action::Action, color::PieceColor};
 use serde::{Deserialize, Serialize};
 
 use crate::transfer::PositionDto;

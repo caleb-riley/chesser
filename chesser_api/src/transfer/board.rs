@@ -1,6 +1,5 @@
+use chesser_core::engine::{board::Board, color::PieceColor};
 use serde::{Deserialize, Serialize};
-
-use chesser_core::{board::Board, piece::PieceColor};
 
 use crate::transfer::{PieceDto, PositionDto};
 

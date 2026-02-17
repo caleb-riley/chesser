@@ -1,4 +1,4 @@
-use chesser_core::position::Position;
+use chesser_core::engine::position::Position;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Copy, Clone)]
