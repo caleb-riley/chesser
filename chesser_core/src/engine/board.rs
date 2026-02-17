@@ -10,41 +10,6 @@ use crate::engine::{
     utils,
 };
 
-fn standard_layout(lua: &mlua::Lua) -> Vec<Vec<Option<Piece>>> {
-    let specials: [&'static str; 8] = [
-        "rook", "knight", "bishop", "king", "queen", "bishop", "knight", "rook",
-    ];
-
-    let mut pieces: Vec<Vec<Option<Piece>>> = (0..8).map(|_| vec![]).collect();
-
-    for kind in specials.iter() {
-        pieces[0].push(Some(Piece::new(kind.to_string(), PieceColor::Black, lua)));
-    }
-
-    for _ in 0..8 {
-        pieces[1].push(Some(Piece::new("pawn".to_owned(), PieceColor::Black, lua)));
-    }
-
-    for board_row in pieces.iter_mut().skip(2).take(4) {
-        for _ in 0..8 {
-            board_row.push(None);
-        }
-    }
-
-    pieces[2][3] = Some(Piece::new("pres".to_owned(), PieceColor::Black, lua));
-    pieces[5][4] = Some(Piece::new("pres".to_owned(), PieceColor::White, lua));
-
-    for _ in 0..8 {
-        pieces[6].push(Some(Piece::new("pawn".to_owned(), PieceColor::White, lua)));
-    }
-
-    for kind in specials.iter() {
-        pieces[7].push(Some(Piece::new(kind.to_string(), PieceColor::White, lua)));
-    }
-
-    pieces
-}
-
 #[derive(Clone)]
 pub struct Board {
     pub dimensions: usize,
@@ -54,15 +19,24 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn standard(lua: &mlua::Lua) -> Self {
-        Self {
-            dimensions: 8,
-            turn_count: 0,
-            captures: HashMap::from_iter([
-                (PieceColor::White, vec![]),
-                (PieceColor::Black, vec![]),
-            ]),
-            pieces: standard_layout(lua),
+    pub fn set_initial_layout(&mut self, initial_layout: &mlua::Table, lua: &mlua::Lua) {
+        for (row, row_list) in initial_layout.sequence_values::<mlua::Table>().enumerate() {
+            for (column, piece) in row_list
+                .unwrap()
+                .sequence_values::<mlua::Table>()
+                .enumerate()
+            {
+                let piece = piece.unwrap();
+
+                if piece.is_empty() {
+                    continue;
+                }
+
+                let piece_id: String = piece.get("id").unwrap();
+                let color: PieceColor = piece.get::<String>("color").unwrap().parse().unwrap();
+
+                self.pieces[row][column] = Some(Piece::new(piece_id, color, lua))
+            }
         }
     }
 
@@ -120,6 +94,58 @@ impl Board {
                     self.pieces[position.row()][position.column()] = None;
                 }
             }
+        }
+    }
+
+    fn get_matching_positions<F>(&self, filter: F) -> impl Iterator<Item = Position>
+    where
+        F: Fn(Position) -> bool,
+    {
+        let dims = self.dimensions;
+
+        (0..dims * dims).filter_map(move |i| {
+            let row = i / dims;
+            let column = i % dims;
+
+            let pos = Position::new(row, column);
+            filter(pos).then_some(pos)
+        })
+    }
+
+    pub fn get_empty_positions(&self) -> impl Iterator<Item = Position> {
+        self.get_matching_positions(|p| self.get_piece(p).is_none())
+    }
+
+    pub fn get_owned_positions(&self, color: PieceColor) -> impl Iterator<Item = Position> {
+        self.get_matching_positions(move |p| {
+            let Some(piece) = self.get_piece(p) else {
+                return false;
+            };
+
+            piece.color == color
+        })
+    }
+
+    pub fn get_area_positions(&self, ul: Position, br: Position) -> impl Iterator<Item = Position> {
+        self.get_matching_positions(move |p| {
+            (ul.row()..=br.row()).contains(&p.row())
+                && (ul.column()..br.column()).contains(&p.column())
+        })
+    }
+}
+
+impl Default for Board {
+    fn default() -> Self {
+        let pieces = (0..8).map(|_| vec![None; 8]).collect();
+
+        Self {
+            dimensions: 8,
+            turn_count: 0,
+            captures: HashMap::from_iter([
+                (PieceColor::White, vec![]),
+                (PieceColor::Black, vec![]),
+            ]),
+            pieces,
         }
     }
 }

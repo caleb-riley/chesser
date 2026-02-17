@@ -2,7 +2,6 @@ use std::{net::SocketAddr, sync::Arc};
 
 use axum::http::{Method, header::CONTENT_TYPE};
 use chesser_core::engine::game::Game;
-use sqlx::SqlitePool;
 use tokio::{net::TcpListener, sync::Mutex};
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
@@ -15,22 +14,17 @@ use crate::api::{Clients, app_router};
 
 #[derive(Clone)]
 struct AppState {
-    _pool: Arc<SqlitePool>,
     game: Arc<Mutex<Game>>,
     clients: Clients,
 }
 
 struct HttpServer {
     socket_addr: SocketAddr,
-    database_url: String,
 }
 
 impl HttpServer {
-    fn new(socket_addr: SocketAddr, database_url: &str) -> Self {
-        Self {
-            socket_addr,
-            database_url: database_url.into(),
-        }
+    fn new(socket_addr: SocketAddr) -> Self {
+        Self { socket_addr }
     }
 
     async fn start(&self) {
@@ -46,13 +40,8 @@ impl HttpServer {
             .allow_headers([CONTENT_TYPE])
             .allow_credentials(true);
 
-        let pool = sqlx::sqlite::SqlitePool::connect(&self.database_url)
-            .await
-            .unwrap();
-
         let router = app_router()
             .with_state(AppState {
-                _pool: Arc::new(pool),
                 game: Arc::new(Mutex::new(Game::default())),
                 clients,
             })
@@ -68,9 +57,8 @@ impl HttpServer {
 #[tokio::main]
 async fn main() {
     let socket_addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let database_url = "sqlite://./database/data.db";
 
-    let http_server = HttpServer::new(socket_addr, database_url);
+    let http_server = HttpServer::new(socket_addr);
     http_server.start().await;
 
     println!("Server started on {}", socket_addr);

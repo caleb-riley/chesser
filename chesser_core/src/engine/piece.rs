@@ -9,7 +9,8 @@ use crate::engine::{color::PieceColor, moves::Move};
 
 #[derive(Clone)]
 pub struct Piece {
-    pub piece_id: String,
+    pub id: uuid::Uuid,
+    pub kind: String,
     pub color: PieceColor,
     pub history: Vec<Move>,
     pub last_moved: Option<usize>,
@@ -17,9 +18,10 @@ pub struct Piece {
 }
 
 impl Piece {
-    pub fn new(piece_id: String, color: PieceColor, lua: &mlua::Lua) -> Self {
+    pub fn new(kind: String, color: PieceColor, lua: &mlua::Lua) -> Self {
         Self {
-            piece_id,
+            id: uuid::Uuid::new_v4(),
+            kind,
             color,
             history: vec![],
             last_moved: None,
@@ -32,7 +34,8 @@ impl IntoLua for &Piece {
     fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
         let piece = lua.create_table_with_capacity(0, 4)?;
 
-        piece.set("kind", self.piece_id.clone())?;
+        piece.set("id", self.id.to_string())?;
+        piece.set("kind", self.kind.clone())?;
         piece.set("color", self.color.to_string())?;
         piece.set("history", self.history.clone())?;
         piece.set("last_moved", self.last_moved)?;

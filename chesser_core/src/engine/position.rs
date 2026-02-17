@@ -1,5 +1,29 @@
 use std::fmt::Display;
 
+use rand::seq::IteratorRandom;
+
+use crate::engine::{board::Board, color::PieceColor};
+
+pub enum PositionQuery {
+    Concrete(Position),
+    RandomEmpty,
+    RandomOwned(PieceColor),
+    RandomListed(Vec<Position>),
+    RandomEnclosed(Position, Position),
+}
+
+impl PositionQuery {
+    pub fn materialize(&self, board: &Board, rng: &mut rand::rngs::ThreadRng) -> Option<Position> {
+        match self {
+            Self::Concrete(position) => Some(*position),
+            Self::RandomEmpty => board.get_empty_positions().choose(rng),
+            Self::RandomOwned(color) => board.get_owned_positions(*color).choose(rng),
+            Self::RandomListed(choices) => choices.iter().choose(rng).cloned(),
+            Self::RandomEnclosed(ul, br) => board.get_area_positions(*ul, *br).choose(rng),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Position(usize, usize);
 

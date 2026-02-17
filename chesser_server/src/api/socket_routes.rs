@@ -99,8 +99,10 @@ async fn handle_socket(state: AppState, socket: WebSocket, user_id: String) {
                                 .as_str(),
                             );
 
-                            let termination_state =
-                                game.get_config().check_termination(&game.board, &lua);
+                            let termination_state = game
+                                .get_config()
+                                .check_termination(&game.board, &lua)
+                                .unwrap();
 
                             println!("Termination state: {termination_state:?}");
                         }
@@ -108,9 +110,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, user_id: String) {
                             let game = state.game.lock().await;
 
                             let piece = game.board.get_piece(pos.into()).unwrap();
-                            let hints = game
-                                .get_available_moves(&piece.piece_id, pos.into())
-                                .unwrap();
+                            let hints = game.get_available_moves(&piece.kind, pos.into()).unwrap();
                             let hints_dto = hints.iter().map(MoveDto::from).collect();
 
                             let mut sender = sender.lock().await;

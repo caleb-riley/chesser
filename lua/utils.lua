@@ -3,6 +3,7 @@
 ---@alias PieceColor "white" | "black"
 
 ---@class Piece
+---@field id string
 ---@field kind string
 ---@field color PieceColor
 ---@field history Move[]

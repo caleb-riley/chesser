@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use mlua::IntoLua;
 
@@ -16,11 +16,16 @@ impl PieceColor {
             Self::Black
         }
     }
+}
 
-    pub fn text(&self) -> &str {
-        match self {
-            Self::White => "white",
-            Self::Black => "black",
+impl FromStr for PieceColor {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "white" => Ok(Self::White),
+            "black" => Ok(Self::Black),
+            _ => Err(()),
         }
     }
 }
@@ -60,9 +65,6 @@ impl mlua::FromLua for PieceColor {
 
 impl IntoLua for PieceColor {
     fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
-        match self {
-            Self::White => Ok("white".into_lua(lua)?),
-            Self::Black => Ok("black".into_lua(lua)?),
-        }
+        self.to_string().into_lua(lua)
     }
 }

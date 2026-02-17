@@ -10,7 +10,7 @@ pub struct PieceDto {
 impl From<&Piece> for PieceDto {
     fn from(piece: &Piece) -> Self {
         Self {
-            kind: piece.piece_id.to_string(),
+            kind: piece.kind.to_string(),
             color: piece.color.to_string(),
         }
     }

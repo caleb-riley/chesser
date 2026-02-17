@@ -17,7 +17,7 @@ impl IntoLua for TerminationState {
     fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
         match self {
             Self::Winner(color) => {
-                let s = color.text().to_string();
+                let s = color.to_string();
 
                 Ok(mlua::Value::String(lua.create_string(&s)?))
             }
@@ -38,7 +38,7 @@ impl FromLua for TerminationState {
 
         match string.to_string_lossy().as_str() {
             "white" => Ok(Self::Winner(PieceColor::White)),
-            "black" => Ok(Self::Winner(PieceColor::White)),
+            "black" => Ok(Self::Winner(PieceColor::Black)),
             "draw" => Ok(Self::Draw),
             _ => Err(mlua::Error::FromLuaConversionError {
                 from: "string",
@@ -110,10 +110,15 @@ impl Default for Game {
         let lua = mlua::Lua::new();
         Self::register_utils(&lua).unwrap();
 
+        let game_config = GameConfig::from_path("./lua/config.lua", &lua);
+
+        let mut board = Board::default();
+        board.set_initial_layout(game_config.get_initial_layout(), &lua);
+
         Self {
             piece_configs: PieceConfig::in_directory("./lua/pieces", &lua),
-            game_config: GameConfig::from_path("./lua/rules.lua", &lua),
-            board: Board::standard(&lua),
+            game_config,
+            board,
             lua,
         }
     }

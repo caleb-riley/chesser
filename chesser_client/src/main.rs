@@ -177,7 +177,7 @@ fn handle_click(
 
         interface.hints.clear();
     } else if let Some(piece) = board.get_piece(position)
-        && piece.color == PieceColor::from_turn_count(board.turn_count).text()
+        && piece.color == PieceColor::from_turn_count(board.turn_count).to_string()
     {
         get_hints(position, net);
 
