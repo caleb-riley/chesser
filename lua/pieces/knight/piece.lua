@@ -17,7 +17,7 @@ return {
         local moves = {}
 
         for _, offset in ipairs(KNIGHT_OFFSETS) do
-            for scale = -1, 1, 2 do
+            for _, scale in ipairs({ -1, 1 }) do
                 local destination = position:offset_by_checked(offset:scale_by(scale), board:get_dimensions())
 
                 if destination ~= nil then
