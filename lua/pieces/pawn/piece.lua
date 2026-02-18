@@ -16,13 +16,13 @@ return {
 
         if forward_one ~= nil and board:get_piece_at_position(forward_one) == nil then
             table.insert(moves, utils.make_passive_move(position, forward_one))
-        end
 
-        if piece.last_moved == nil then
-            local forward_two = position:offset_by_checked(Offset.new(delta_row * 2, 0), board:get_dimensions())
+            if piece.last_moved == nil then
+                local forward_two = position:offset_by_checked(Offset.new(delta_row * 2, 0), board:get_dimensions())
 
-            if forward_two ~= nil and board:get_piece_at_position(forward_two) == nil then
-                table.insert(moves, utils.make_passive_move(position, forward_two))
+                if forward_two ~= nil and board:get_piece_at_position(forward_two) == nil then
+                    table.insert(moves, utils.make_passive_move(position, forward_two))
+                end
             end
         end
 

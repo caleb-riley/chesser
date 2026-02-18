@@ -42,8 +42,6 @@ impl Board {
 
                 let piece = Piece::new(id, color, lua);
 
-                println!("{row} {column}");
-
                 squares[row][column] = Some(piece.id.to_string());
                 pieces.insert(piece.id.to_string(), piece);
             }

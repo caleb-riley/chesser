@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 chesser_api = { path = "../chesser_api" }
-chesser_core = { path = "../chesser_core" }
 
 bevy = { version = "0.18", default-features = false, features = [
     "2d",

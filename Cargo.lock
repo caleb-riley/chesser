@@ -2033,7 +2033,6 @@ dependencies = [
  "bevy",
  "bevy_egui",
  "chesser_api",
- "chesser_core",
  "futures-util",
  "image",
  "reqwest",

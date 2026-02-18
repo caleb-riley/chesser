@@ -8,10 +8,10 @@ use bevy::{
 use bevy_egui::egui;
 
 use chesser_api::{
+    PieceColor,
     network::NetworkCommand,
     transfer::{ActionDto, BoardDto, MoveDto, PieceConfigDto, PieceDto, PositionDto},
 };
-use chesser_core::engine::color::PieceColor;
 
 use crate::network::{NetworkClient, TokioRuntime, handle_network_messages, start_networking};
 
