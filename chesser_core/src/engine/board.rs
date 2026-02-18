@@ -15,38 +15,65 @@ pub struct Board {
     pub dimensions: usize,
     pub turn_count: usize,
     pub captures: HashMap<PieceColor, Vec<String>>,
-    pub pieces: Vec<Vec<Option<Piece>>>,
+    pub squares: Vec<Vec<Option<String>>>,
+    pub pieces: HashMap<String, Piece>,
 }
 
 impl Board {
-    pub fn set_initial_layout(&mut self, initial_layout: &mlua::Table, lua: &mlua::Lua) {
+    pub fn from_initial_layout(initial_layout: &mlua::Table, lua: &mlua::Lua) -> Self {
+        let dimensions = initial_layout.len().unwrap() as usize;
+        let mut squares: Vec<_> = (0..dimensions).map(|_| vec![None; dimensions]).collect();
+        let mut pieces = HashMap::default();
+
         for (row, row_list) in initial_layout.sequence_values::<mlua::Table>().enumerate() {
             for (column, piece) in row_list
                 .unwrap()
                 .sequence_values::<mlua::Table>()
                 .enumerate()
             {
-                let piece = piece.unwrap();
+                let piece_info = piece.unwrap();
 
-                if piece.is_empty() {
+                if piece_info.is_empty() {
                     continue;
                 }
 
-                let piece_id: String = piece.get("id").unwrap();
-                let color: PieceColor = piece.get::<String>("color").unwrap().parse().unwrap();
+                let id: String = piece_info.get("id").unwrap();
+                let color: PieceColor = piece_info.get::<String>("color").unwrap().parse().unwrap();
 
-                self.pieces[row][column] = Some(Piece::new(piece_id, color, lua))
+                let piece = Piece::new(id, color, lua);
+
+                println!("{row} {column}");
+
+                squares[row][column] = Some(piece.id.to_string());
+                pieces.insert(piece.id.to_string(), piece);
             }
+        }
+
+        Self {
+            dimensions,
+            turn_count: 0,
+            captures: HashMap::from_iter([
+                (PieceColor::White, vec![]),
+                (PieceColor::Black, vec![]),
+            ]),
+            squares,
+            pieces,
         }
     }
 
-    pub fn get_piece(&self, position: Position) -> Option<&Piece> {
+    pub fn get_piece_by_id(&self, id: &str) -> Option<&Piece> {
+        self.pieces.get(id)
+    }
+
+    pub fn get_piece_at_position(&self, position: Position) -> Option<&Piece> {
         let (row, col) = position.as_parts();
 
         if row >= self.dimensions || col >= self.dimensions {
             None
         } else {
-            self.pieces[row][col].as_ref()
+            let id = self.squares[row][col].as_ref();
+
+            id.map(|id| self.pieces.get(id)).flatten()
         }
     }
 
@@ -59,14 +86,16 @@ impl Board {
                     origin,
                     destination,
                 } => {
-                    let mut piece = self.pieces[origin.row()][origin.column()]
+                    let id = self.squares[origin.row()][origin.column()]
                         .take()
                         .expect("no piece at origin");
+                    let piece = self.pieces.get_mut(&id).unwrap();
 
                     piece.history.push(the_move.clone());
                     piece.last_moved = Some(self.turn_count);
 
-                    self.pieces[destination.row()][destination.column()] = Some(piece);
+                    self.squares[destination.row()][destination.column()] =
+                        Some(piece.id.to_string());
                 }
 
                 Action::Spawn {
@@ -87,11 +116,13 @@ impl Board {
                         id = buffer.trim().to_string();
                     }
 
-                    self.pieces[position.row()][position.column()] =
-                        Some(Piece::new(id.clone(), *color, lua));
+                    let piece = Piece::new(id.clone(), *color, lua);
+
+                    self.squares[position.row()][position.column()] = Some(piece.id.to_string());
+                    self.pieces.insert(piece.id.to_string(), piece);
                 }
                 Action::Deletion { position } => {
-                    self.pieces[position.row()][position.column()] = None;
+                    self.squares[position.row()][position.column()] = None;
                 }
             }
         }
@@ -113,12 +144,12 @@ impl Board {
     }
 
     pub fn get_empty_positions(&self) -> impl Iterator<Item = Position> {
-        self.get_matching_positions(|p| self.get_piece(p).is_none())
+        self.get_matching_positions(|p| self.get_piece_at_position(p).is_none())
     }
 
     pub fn get_owned_positions(&self, color: PieceColor) -> impl Iterator<Item = Position> {
         self.get_matching_positions(move |p| {
-            let Some(piece) = self.get_piece(p) else {
+            let Some(piece) = self.get_piece_at_position(p) else {
                 return false;
             };
 
@@ -136,7 +167,7 @@ impl Board {
 
 impl Default for Board {
     fn default() -> Self {
-        let pieces = (0..8).map(|_| vec![None; 8]).collect();
+        let squares = (0..8).map(|_| vec![None; 8]).collect();
 
         Self {
             dimensions: 8,
@@ -145,19 +176,24 @@ impl Default for Board {
                 (PieceColor::White, vec![]),
                 (PieceColor::Black, vec![]),
             ]),
-            pieces,
+            squares,
+            pieces: HashMap::default(),
         }
     }
 }
 
 impl mlua::UserData for Board {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
-        methods.add_method("get_piece", |lua, board, position| {
-            Ok(board.get_piece(position).into_lua(lua))
+        methods.add_method("get_piece_by_id", |lua, board, id: String| {
+            Ok(board.get_piece_by_id(&id).into_lua(lua))
+        });
+
+        methods.add_method("get_piece_at_position", |lua, board, position| {
+            Ok(board.get_piece_at_position(position).into_lua(lua))
         });
 
         methods.add_method("get_perpendicular_moves", |_, board, position| {
-            let piece = board.get_piece(position).unwrap();
+            let piece = board.get_piece_at_position(position).unwrap();
             let positions = utils::available_positions_in_directions(
                 position,
                 piece,
@@ -169,7 +205,7 @@ impl mlua::UserData for Board {
         });
 
         methods.add_method("get_diagonal_moves", |_, board, position| {
-            let piece = board.get_piece(position).unwrap();
+            let piece = board.get_piece_at_position(position).unwrap();
             let positions =
                 utils::available_positions_in_directions(position, piece, board, &utils::DIAGONAL);
 
@@ -179,7 +215,7 @@ impl mlua::UserData for Board {
         methods.add_method(
             "get_directional_moves",
             |_, board, (position, offsets): (Position, Vec<Offset>)| {
-                let piece = board.get_piece(position).unwrap();
+                let piece = board.get_piece_at_position(position).unwrap();
                 let offsets = offsets
                     .into_iter()
                     .map(|offset| offset.as_parts())

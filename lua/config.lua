@@ -17,9 +17,9 @@ local function get_default_board()
         table.insert(initial_layout[2], { id = "pawn", color = "black" })
     end
 
-    for column = 3, 6 do
+    for row = 3, 6 do
         for _ = 1, 8 do
-            table.insert(initial_layout[column], EMPTY)
+            table.insert(initial_layout[row], EMPTY)
         end
     end
 
@@ -29,6 +29,34 @@ local function get_default_board()
 
     for _, id in ipairs(BACK_ROWS) do
         table.insert(initial_layout[8], { id = id, color = "white" })
+    end
+
+    return initial_layout
+end
+
+---@return InitialPiece[][]
+local function get_5x5_board()
+    local BACK_ROWS_5x5 = { "rook", "knight", "bishop", "queen", "king" }
+    local initial_layout = { {}, {}, {}, {}, {} }
+
+    for _, id in ipairs(BACK_ROWS_5x5) do
+        table.insert(initial_layout[1], { id = id, color = "black" })
+    end
+
+    for _ = 1, 5 do
+        table.insert(initial_layout[2], { id = "pawn", color = "black" })
+    end
+
+    for _ = 1, 5 do
+        table.insert(initial_layout[3], EMPTY)
+    end
+
+    for _ = 1, 5 do
+        table.insert(initial_layout[4], { id = "pawn", color = "white" })
+    end
+
+    for _, id in ipairs(BACK_ROWS_5x5) do
+        table.insert(initial_layout[5], { id = id, color = "white" })
     end
 
     return initial_layout
@@ -45,7 +73,7 @@ return {
 
         for row = 0, 7 do
             for column = 0, 7 do
-                local piece = board:get_piece(Position.new(row, column))
+                local piece = board:get_piece_at_position(Position.new(row, column))
 
                 if piece ~= nil and piece.kind == "king" then
                     if piece.color == "white" then

@@ -34,7 +34,7 @@ impl PieceConfig {
         position: Position,
     ) -> mlua::Result<Vec<Move>> {
         let board_userdata = lua.create_userdata(board.clone()).unwrap();
-        let piece = board.get_piece(position).unwrap();
+        let piece = board.get_piece_at_position(position).unwrap();
 
         self.available_moves.call((board_userdata, piece, position))
     }

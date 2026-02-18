@@ -36,7 +36,7 @@ pub fn available_positions_in_directions(
             Offset::new(*delta_row, *delta_column).scale_by(scale),
             board.dimensions,
         ) {
-            if let Some(target) = board.get_piece(target_position) {
+            if let Some(target) = board.get_piece_at_position(target_position) {
                 if target.color != piece.color {
                     positions.insert(target_position);
                 }
@@ -62,7 +62,7 @@ pub fn generate_moves(
     let mut moves = vec![];
 
     for position in positions {
-        if let Some(target) = board.get_piece(position) {
+        if let Some(target) = board.get_piece_at_position(position) {
             if target.color != piece.color {
                 moves.push(Move::new(
                     origin,

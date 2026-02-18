@@ -14,14 +14,14 @@ return {
 
         local forward_one = position:offset_by_checked(Offset.new(delta_row, 0), board:get_dimensions())
 
-        if forward_one ~= nil and board:get_piece(forward_one) == nil then
+        if forward_one ~= nil and board:get_piece_at_position(forward_one) == nil then
             table.insert(moves, utils.make_passive_move(position, forward_one))
         end
 
         if piece.last_moved == nil then
             local forward_two = position:offset_by_checked(Offset.new(delta_row * 2, 0), board:get_dimensions())
 
-            if forward_two ~= nil and board:get_piece(forward_two) == nil then
+            if forward_two ~= nil and board:get_piece_at_position(forward_two) == nil then
                 table.insert(moves, utils.make_passive_move(position, forward_two))
             end
         end
@@ -31,7 +31,7 @@ return {
                 Offset.new(delta_row, delta_column), board:get_dimensions())
 
             if diagonal_position ~= nil then
-                local diagonal_target = board:get_piece(diagonal_position)
+                local diagonal_target = board:get_piece_at_position(diagonal_position)
 
                 if diagonal_target ~= nil and diagonal_target.color ~= piece.color then
                     table.insert(moves, utils.make_capture_move(position, diagonal_position, { diagonal_position }))
@@ -40,7 +40,7 @@ return {
                 local lateral_position = position:offset_by_checked(Offset.new(0, delta_column), board:get_dimensions())
 
                 if lateral_position ~= nil then
-                    local target = board:get_piece(lateral_position)
+                    local target = board:get_piece_at_position(lateral_position)
 
                     if target ~= nil and target.color ~= piece.color and #target.history > 0 then
                         local previous = target.history[#target.history]

@@ -5,6 +5,7 @@ use crate::transfer::{PieceDto, PositionDto};
 
 #[derive(Serialize, Deserialize)]
 pub struct BoardDto {
+    pub dimensions: usize,
     pub pieces: Vec<Vec<Option<PieceDto>>>,
     pub current_turn: String,
     pub turn_count: usize,
@@ -19,10 +20,19 @@ impl BoardDto {
 impl From<&Board> for BoardDto {
     fn from(board: &Board) -> Self {
         Self {
+            dimensions: board.dimensions,
             pieces: board
-                .pieces
+                .squares
                 .iter()
-                .map(|row| row.iter().map(|p| p.as_ref().map(PieceDto::from)).collect())
+                .map(|row| {
+                    row.iter()
+                        .map(|id| {
+                            id.as_ref()
+                                .map(|id| board.get_piece_by_id(&id).map(PieceDto::from))
+                                .flatten()
+                        })
+                        .collect()
+                })
                 .collect(),
             current_turn: PieceColor::from_turn_count(board.turn_count).to_string(),
             turn_count: board.turn_count,

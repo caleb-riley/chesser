@@ -34,7 +34,8 @@
 ---@field promotions string[]
 
 ---@class Board
----@field get_piece fun(self: Board, position: Position): Piece | nil
+---@field get_piece_by_id fun(self: Board, id: string): Piece | nil
+---@field get_piece_at_position fun(self: Board, position: Position): Piece | nil
 ---@field get_perpendicular_moves fun(self: Board, position: Position): Move[]
 ---@field get_diagonal_moves fun(self: Board, position: Position): Move[]
 ---@field get_directional_moves fun(self: Board, position: Position, offsets: Offset[]): Move[]

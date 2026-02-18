@@ -110,13 +110,12 @@ impl Default for Game {
         let lua = mlua::Lua::new();
         Self::register_utils(&lua).unwrap();
 
+        let piece_configs = PieceConfig::in_directory("./lua/pieces", &lua);
         let game_config = GameConfig::from_path("./lua/config.lua", &lua);
-
-        let mut board = Board::default();
-        board.set_initial_layout(game_config.get_initial_layout(), &lua);
+        let board = Board::from_initial_layout(game_config.get_initial_layout(), &lua);
 
         Self {
-            piece_configs: PieceConfig::in_directory("./lua/pieces", &lua),
+            piece_configs,
             game_config,
             board,
             lua,

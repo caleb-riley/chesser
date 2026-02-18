@@ -21,7 +21,7 @@ return {
                 local destination = position:offset_by_checked(offset:scale_by(scale), board:get_dimensions())
 
                 if destination ~= nil then
-                    local target = board:get_piece(destination)
+                    local target = board:get_piece_at_position(destination)
 
                     if target == nil then
                         table.insert(moves, utils.make_passive_move(position, destination))

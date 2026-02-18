@@ -223,15 +223,18 @@ fn _draw_player_info(ui: &mut egui::Ui, board: &BoardDto) {
     // );
 }
 
-fn allocate_board_cells(ui: &mut egui::Ui) -> Vec<Vec<(egui::Rect, egui::Response)>> {
+fn allocate_board_cells(
+    ui: &mut egui::Ui,
+    board: &BoardDto,
+) -> Vec<Vec<(egui::Rect, egui::Response)>> {
     let mut cells = vec![];
 
-    for _ in 0..8 {
+    for _ in 0..board.dimensions {
         let mut row_cells = vec![];
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-            for _ in 0..8 {
+            for _ in 0..board.dimensions {
                 let (rect, response) =
                     ui.allocate_exact_size(egui::Vec2::splat(CELL_SIZE), egui::Sense::click());
 
@@ -343,7 +346,7 @@ fn ui_system(
             let original_spacing = ui.spacing_mut().item_spacing;
             ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
 
-            let cells = allocate_board_cells(ui);
+            let cells = allocate_board_cells(ui, board_dto);
 
             for (row, cell_row) in cells.iter().enumerate() {
                 for (column, (rect, response)) in cell_row.iter().enumerate() {

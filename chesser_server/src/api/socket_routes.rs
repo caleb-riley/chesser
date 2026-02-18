@@ -109,7 +109,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, user_id: String) {
                         Ok(NetworkCommand::RequestHints(pos)) => {
                             let game = state.game.lock().await;
 
-                            let piece = game.board.get_piece(pos.into()).unwrap();
+                            let piece = game.board.get_piece_at_position(pos.into()).unwrap();
                             let hints = game.get_available_moves(&piece.kind, pos.into()).unwrap();
                             let hints_dto = hints.iter().map(MoveDto::from).collect();
 
