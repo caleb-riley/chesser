@@ -8,7 +8,7 @@ pub enum Action {
     },
     Spawn {
         position: Position,
-        id: String,
+        kind: String,
         color: PieceColor,
     },
     Deletion {
@@ -26,7 +26,7 @@ impl mlua::FromLua for Action {
             });
         };
 
-        let kind = table.get::<String>("kind")?;
+        let kind = table.get::<String>("_kind")?;
 
         match kind.as_str() {
             "relocation" => {
@@ -40,12 +40,12 @@ impl mlua::FromLua for Action {
             }
             "spawn" => {
                 let position: Position = table.get("position")?;
-                let id: String = table.get("id")?;
+                let kind: String = table.get("kind")?;
                 let color: PieceColor = table.get("color")?;
 
                 Ok(Action::Spawn {
                     position,
-                    id,
+                    kind,
                     color,
                 })
             }
@@ -72,22 +72,22 @@ impl mlua::IntoLua for Action {
                 origin,
                 destination,
             } => {
-                table.set("kind", "relocation")?;
+                table.set("_kind", "relocation")?;
                 table.set("origin", origin)?;
                 table.set("destination", destination)?;
             }
             Self::Spawn {
                 position,
-                id,
+                kind,
                 color,
             } => {
-                table.set("kind", "spawn")?;
+                table.set("_kind", "spawn")?;
                 table.set("position", position)?;
-                table.set("id", id)?;
+                table.set("kind", kind)?;
                 table.set("color", color)?;
             }
             Self::Deletion { position } => {
-                table.set("kind", "deletion")?;
+                table.set("_kind", "deletion")?;
                 table.set("position", position)?;
             }
         }

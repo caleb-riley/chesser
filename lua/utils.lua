@@ -11,18 +11,18 @@
 ---@field metadata table
 
 ---@class RelocationAction
----@field kind "relocation"
+---@field _kind "relocation"
 ---@field origin Position
 ---@field destination Position
 
 ---@class SpawnAction
----@field kind "spawn"
+---@field _kind "spawn"
 ---@field position Position
----@field id string
+---@field kind string
 ---@field color PieceColor
 
 ---@class DeletionAction
----@field kind "deletion"
+---@field _kind "deletion"
 ---@field position Position
 
 ---@alias Action RelocationAction | SpawnAction | DeletionAction
@@ -77,7 +77,7 @@ function utils.make_passive_move(origin, destination)
         origin = origin,
         destination = destination,
         actions = {
-            { kind = "relocation", origin = origin, destination = destination },
+            { _kind = "relocation", origin = origin, destination = destination },
         },
         promotions = {},
     }
@@ -92,13 +92,13 @@ function utils.make_capture_move(origin, destination, captures)
 
     for _, capture in ipairs(captures) do
         table.insert(actions, {
-            kind = "deletion",
+            _kind = "deletion",
             position = capture,
         })
     end
 
     table.insert(actions, {
-        kind = "relocation",
+        _kind = "relocation",
         origin = origin,
         destination = destination,
     })
@@ -109,4 +109,9 @@ function utils.make_capture_move(origin, destination, captures)
         actions = actions,
         promotions = {},
     }
+end
+
+---@param message string
+function utils.debug(message)
+    print("[DEBUG] " .. message)
 end

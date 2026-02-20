@@ -16,7 +16,7 @@ async fn get_piece_configs(State(state): State<AppState>) -> impl IntoResponse {
 
     let mut piece_configs = HashMap::new();
 
-    for (piece_id, piece_config) in game.get_piece_configs() {
+    for (piece_id, piece_config) in game.piece_configs() {
         piece_configs.insert(piece_id.to_owned(), PieceConfigDto::from(piece_config));
     }
 

@@ -26,7 +26,7 @@ return {
             end
         end
 
-        for delta_column = -1, 1, 2 do
+        for _, delta_column in ipairs({ -1, 1 }) do
             local diagonal_position = position:offset_by_checked(
                 Offset.new(delta_row, delta_column), board:get_dimensions())
 
@@ -46,7 +46,7 @@ return {
                         local previous = target.history[#target.history]
 
                         if previous.origin:offset_to(lateral_position):taxicab_magnitude() == 2
-                            and target.last_moved == board:turn_count() then
+                            and target.last_moved == board:turn_count() - 1 then
                             table.insert(moves,
                                 utils.make_capture_move(position, diagonal_position, { lateral_position }))
                         end

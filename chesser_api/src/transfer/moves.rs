@@ -20,18 +20,18 @@ impl MoveDto {
 }
 
 impl From<&Move> for MoveDto {
-    fn from(the_move: &Move) -> Self {
+    fn from(mv: &Move) -> Self {
         let mut actions = vec![];
 
-        for action in &the_move.actions {
-            actions.push((action).into());
+        for action in mv.actions() {
+            actions.push(action.into());
         }
 
         Self {
-            origin: (&the_move.origin).into(),
-            destination: (&the_move.destination).into(),
+            origin: mv.origin().into(),
+            destination: mv.destination().into(),
             actions,
-            promotions: the_move.promotions.clone(),
+            promotions: mv.promotions().clone(),
         }
     }
 }

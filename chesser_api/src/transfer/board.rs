@@ -1,4 +1,4 @@
-use chesser_core::engine::{board::Board, color::PieceColor};
+use chesser_core::engine::board::Board;
 use serde::{Deserialize, Serialize};
 
 use crate::transfer::{PieceDto, PositionDto};
@@ -7,7 +7,6 @@ use crate::transfer::{PieceDto, PositionDto};
 pub struct BoardDto {
     pub dimensions: usize,
     pub pieces: Vec<Vec<Option<PieceDto>>>,
-    pub current_turn: String,
     pub turn_count: usize,
 }
 
@@ -20,22 +19,20 @@ impl BoardDto {
 impl From<&Board> for BoardDto {
     fn from(board: &Board) -> Self {
         Self {
-            dimensions: board.dimensions,
+            dimensions: board.dimensions(),
             pieces: board
-                .squares
+                .squares()
                 .iter()
                 .map(|row| {
                     row.iter()
                         .map(|id| {
                             id.as_ref()
-                                .map(|id| board.get_piece_by_id(&id).map(PieceDto::from))
-                                .flatten()
+                                .and_then(|id| board.get_piece_by_id(id).map(PieceDto::from))
                         })
                         .collect()
                 })
                 .collect(),
-            current_turn: PieceColor::from_turn_count(board.turn_count).to_string(),
-            turn_count: board.turn_count,
+            turn_count: board.turn_count(),
         }
     }
 }

@@ -4,10 +4,10 @@ use crate::engine::{action::Action, position::Position};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Move {
-    pub origin: Position,
-    pub destination: Position,
-    pub actions: Vec<Action>,
-    pub promotions: Vec<String>,
+    origin: Position,
+    destination: Position,
+    actions: Vec<Action>,
+    promotions: Vec<String>,
 }
 
 impl Move {
@@ -23,6 +23,22 @@ impl Move {
             actions,
             promotions,
         }
+    }
+
+    pub fn origin(&self) -> Position {
+        self.origin
+    }
+
+    pub fn destination(&self) -> Position {
+        self.destination
+    }
+
+    pub fn actions(&self) -> &Vec<Action> {
+        &self.actions
+    }
+
+    pub fn promotions(&self) -> &Vec<String> {
+        &self.promotions
     }
 }
 

@@ -49,19 +49,41 @@ impl FromLua for TerminationState {
     }
 }
 
+pub mod hook_names {
+    pub const ON_TURN_STARTED: &str = "on_turn_started";
+    pub const ON_TURN_ENDED: &str = "on_turn_ended";
+
+    pub const ON_PIECE_RELOCATED: &str = "on_piece_relocated";
+    pub const ON_PIECE_SPAWNED: &str = "on_piece_spawned";
+    pub const ON_PIECE_DELETED: &str = "on_piece_deleted";
+
+    pub const VALIDATE_MOVE: &str = "validate_move";
+}
+
 pub struct Game {
     piece_configs: HashMap<String, PieceConfig>,
     game_config: GameConfig,
-    pub lua: mlua::Lua,
+    lua: mlua::Lua,
     pub board: Board,
 }
 
 impl Game {
-    pub fn get_piece_configs(&self) -> &HashMap<String, PieceConfig> {
+    pub fn perform_move(&mut self, mv: &Move) {
+        self.board
+            .perform_move(mv, &self.lua, self.game_config.get_hooks());
+    }
+
+    pub fn check_termination(&self) -> Option<TerminationState> {
+        self.game_config
+            .check_termination(&self.board, &self.lua)
+            .unwrap()
+    }
+
+    pub fn piece_configs(&self) -> &HashMap<String, PieceConfig> {
         &self.piece_configs
     }
 
-    pub fn get_config(&self) -> &GameConfig {
+    pub fn game_config(&self) -> &GameConfig {
         &self.game_config
     }
 
@@ -71,8 +93,20 @@ impl Game {
         position: Position,
     ) -> mlua::Result<Vec<Move>> {
         let piece_config = self.piece_configs.get(piece_id).unwrap();
+        let potential_moves = piece_config.get_available_moves(&self.lua, &self.board, position)?;
 
-        piece_config.get_available_moves(&self.lua, &self.board, position)
+        if let Some(validate_move) = self.game_config.get_hooks().get(hook_names::VALIDATE_MOVE) {
+            return Ok(potential_moves
+                .into_iter()
+                .filter(|mv| {
+                    let piece = self.board.get_piece_at_position(mv.origin()).unwrap();
+
+                    validate_move.call::<bool>((piece, mv.clone())).unwrap()
+                })
+                .collect());
+        }
+
+        Ok(potential_moves)
     }
 
     fn register_utils(lua: &mlua::Lua) -> mlua::Result<()> {
@@ -111,8 +145,14 @@ impl Default for Game {
         Self::register_utils(&lua).unwrap();
 
         let piece_configs = PieceConfig::in_directory("./lua/pieces", &lua);
-        let game_config = GameConfig::from_path("./lua/config.lua", &lua);
+        let game_config = GameConfig::from_mod_root("./lua", &lua);
         let board = Board::from_initial_layout(game_config.get_initial_layout(), &lua);
+
+        if let Some(hook) = game_config.get_hooks().get(hook_names::ON_TURN_STARTED) {
+            let _: mlua::Value = hook
+                .call(PieceColor::from_turn_count(board.turn_count()))
+                .unwrap();
+        }
 
         Self {
             piece_configs,

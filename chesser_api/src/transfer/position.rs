@@ -7,8 +7,8 @@ pub struct PositionDto {
     pub column: usize,
 }
 
-impl From<&Position> for PositionDto {
-    fn from(position: &Position) -> Self {
+impl From<Position> for PositionDto {
+    fn from(position: Position) -> Self {
         Self {
             row: position.row(),
             column: position.column(),

@@ -24,7 +24,7 @@ pub struct PieceConfigDto {
 impl From<&PieceConfig> for PieceConfigDto {
     fn from(piece_config: &PieceConfig) -> Self {
         Self {
-            value: piece_config.get_value(),
+            value: piece_config.piece_value(),
         }
     }
 }

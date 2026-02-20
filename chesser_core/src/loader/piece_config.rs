@@ -1,30 +1,31 @@
 use std::collections::HashMap;
 
-use crate::engine::{board::Board, moves::Move, position::Position};
+use crate::{
+    engine::{board::Board, moves::Move, position::Position},
+    loader::load_table,
+};
 
 pub struct PieceConfig {
-    value: i32,
+    piece_value: i32,
     available_moves: mlua::Function,
 }
 
 impl PieceConfig {
     pub fn from_path(lua: &mlua::Lua, piece_path: &str) -> Self {
         let script_path = format!("{piece_path}/piece.lua");
-        let script = std::fs::read_to_string(script_path).unwrap();
+        let piece_config = load_table(&script_path, lua).unwrap();
 
-        let piece_data: mlua::Table = lua.load(script).eval().unwrap();
-
-        let value: mlua::Integer = piece_data.get("value").unwrap();
-        let available_moves: mlua::Function = piece_data.get("available_moves").unwrap();
+        let value: mlua::Integer = piece_config.get("value").unwrap();
+        let available_moves: mlua::Function = piece_config.get("available_moves").unwrap();
 
         Self {
-            value: value as i32,
+            piece_value: value as i32,
             available_moves,
         }
     }
 
-    pub fn get_value(&self) -> i32 {
-        self.value
+    pub fn piece_value(&self) -> i32 {
+        self.piece_value
     }
 
     pub fn get_available_moves(

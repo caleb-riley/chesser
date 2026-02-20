@@ -26,20 +26,20 @@ impl From<&Action> for ActionDto {
                 origin,
                 destination,
             } => ActionDto::Relocate {
-                origin: origin.into(),
-                destination: destination.into(),
+                origin: (*origin).into(),
+                destination: (*destination).into(),
             },
             Action::Spawn {
                 position,
-                id,
+                kind: id,
                 color,
             } => ActionDto::Spawn {
-                position: position.into(),
+                position: (*position).into(),
                 id: id.into(),
                 color: color.to_string(),
             },
             Action::Deletion { position } => ActionDto::Deletion {
-                position: position.into(),
+                position: (*position).into(),
             },
         }
     }
@@ -61,7 +61,7 @@ impl From<ActionDto> for Action {
                 color,
             } => Self::Spawn {
                 position: position.into(),
-                id,
+                kind: id,
                 color: match color.as_str() {
                     "white" => PieceColor::White,
                     _ => PieceColor::Black,

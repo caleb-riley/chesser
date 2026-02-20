@@ -34,7 +34,7 @@ pub fn available_positions_in_directions(
 
         while let Some(target_position) = position.offset_by_checked(
             Offset::new(*delta_row, *delta_column).scale_by(scale),
-            board.dimensions,
+            board.dimensions(),
         ) {
             if let Some(target) = board.get_piece_at_position(target_position) {
                 if target.color != piece.color {
